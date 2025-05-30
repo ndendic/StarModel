@@ -193,11 +193,15 @@ app, rt = fast_app(
 # =============================================================================
 
 @rt('/')
-def index(req: Request, sess: dict, auth: str, my_state: MyState):
+def index(req: Request, sess: dict, auth: str = None, my_state: MyState = None):
     """
     Main page demonstrating session-scoped state with automatic injection.
     No more manual _get_state() calls needed!
     """
+    # Fallback if state injection failed
+    if my_state is None:
+        from faststate.state import _get_state
+        my_state = _get_state(MyState, req, sess)
     return Titled("FastState Demo - Enhanced with DI",
         Main(
             # Welcome message
@@ -266,13 +270,23 @@ def index(req: Request, sess: dict, auth: str, my_state: MyState):
 
 
 @rt('/profile')
-def profile(req: Request, sess: dict, auth: str, profile: UserProfileState):
+def profile(req: Request, sess: dict, auth: str = None, profile: UserProfileState = None):
     """
     User profile page with user-scoped state.
     Automatically handles authentication requirements.
     """
-    # Note: Authentication is handled automatically by the state registry
-    # If user is not authenticated, they would get an error before reaching here
+    # Fallback if state injection failed
+    if profile is None:
+        from faststate.state import _get_state
+        try:
+            profile = _get_state(UserProfileState, req, sess)
+        except Exception as e:
+            from fasthtml.common import P, Div
+            return Div(
+                P(f"Authentication required: {str(e)}", cls="error text-red-500 font-bold"),
+                P(A("Login here", href="/login"), cls="text-blue-500"),
+                cls="p-4 bg-red-50 border border-red-200 rounded"
+            )
     
     return Titled("User Profile",
         Main(
@@ -327,11 +341,23 @@ def profile(req: Request, sess: dict, auth: str, profile: UserProfileState):
 
 
 @rt('/admin')
-def admin_panel(req: Request, sess: dict, auth: str, settings: GlobalSettingsState):
+def admin_panel(req: Request, sess: dict, auth: str = None, settings: GlobalSettingsState = None):
     """
     Admin panel with global state.
     Automatically enforces admin permissions via state registry.
     """
+    # Fallback if state injection failed
+    if settings is None:
+        from faststate.state import _get_state
+        try:
+            settings = _get_state(GlobalSettingsState, req, sess)
+        except Exception as e:
+            from fasthtml.common import P, Div
+            return Div(
+                P(f"Admin access required: {str(e)}", cls="error text-red-500 font-bold"),
+                P(A("Login as admin", href="/login"), cls="text-blue-500"),
+                cls="p-4 bg-red-50 border border-red-200 rounded"
+            )
     return Titled("Admin Panel",
         Main(
             Div(
@@ -395,11 +421,24 @@ def admin_panel(req: Request, sess: dict, auth: str, settings: GlobalSettingsSta
 
 
 @rt('/product/{record_id}')
-def product_detail(req: Request, sess: dict, auth: str, product: ProductState, record_id: int):
+def product_detail(req: Request, sess: dict, auth: str = None, product: ProductState = None, record_id: int = None):
     """
     Product detail page with record-scoped state.
     Demonstrates state tied to specific database records.
     """
+    # Fallback if state injection failed
+    if product is None:
+        from faststate.state import _get_state
+        try:
+            product = _get_state(ProductState, req, sess, record_id=record_id)
+        except Exception as e:
+            from fasthtml.common import P, Div
+            return Div(
+                P(f"Product access required: {str(e)}", cls="error text-red-500 font-bold"),
+                P(A("Login here", href="/login"), cls="text-blue-500"),
+                cls="p-4 bg-red-50 border border-red-200 rounded"
+            )
+    
     # Initialize product data if empty (simulating database load)
     if not product.name:
         product.name = f"Sample Product {record_id}"
@@ -522,7 +561,7 @@ def auth_demo(req: Request, sess: dict, user: str = "", permissions: str = ""):
 # =============================================================================
 
 # Include original routes for backward compatibility
-old_routes.to_app(app)
+# old_routes.to_app(app)
 state_rt.to_app(app)
 
 # =============================================================================
