@@ -14,6 +14,10 @@ from .auth import (
     clear_auth_context, has_permission, has_role, is_authenticated,
     require_admin, require_authenticated
 )
+from .fasthtml_integration import (
+    initialize_faststate, register_auth_provider, create_state_middleware,
+    get_state_info
+)
 
 __all__ = [
     # Core state components
@@ -45,6 +49,12 @@ __all__ = [
     'is_authenticated',
     'require_admin',
     'require_authenticated',
+    
+    # FastHTML integration
+    'initialize_faststate',
+    'register_auth_provider',
+    'create_state_middleware',
+    'get_state_info',
 ]
 
 def hello() -> str:
