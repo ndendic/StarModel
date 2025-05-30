@@ -281,7 +281,6 @@ def profile(req: Request, sess: dict, auth: str = None, profile: UserProfileStat
         try:
             profile = _get_state(UserProfileState, req, sess)
         except Exception as e:
-            from fasthtml.common import P, Div
             return Div(
                 P(f"Authentication required: {str(e)}", cls="error text-red-500 font-bold"),
                 P(A("Login here", href="/login"), cls="text-blue-500"),
@@ -352,7 +351,6 @@ def admin_panel(req: Request, sess: dict, auth: str = None, settings: GlobalSett
         try:
             settings = _get_state(GlobalSettingsState, req, sess)
         except Exception as e:
-            from fasthtml.common import P, Div
             return Div(
                 P(f"Admin access required: {str(e)}", cls="error text-red-500 font-bold"),
                 P(A("Login as admin", href="/login"), cls="text-blue-500"),
@@ -432,7 +430,6 @@ def product_detail(req: Request, sess: dict, auth: str = None, product: ProductS
         try:
             product = _get_state(ProductState, req, sess, record_id=record_id)
         except Exception as e:
-            from fasthtml.common import P, Div
             return Div(
                 P(f"Product access required: {str(e)}", cls="error text-red-500 font-bold"),
                 P(A("Login here", href="/login"), cls="text-blue-500"),
