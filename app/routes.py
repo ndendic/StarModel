@@ -80,8 +80,7 @@ class MyState(ReactiveState):
 
 @rt('/')
 def index(request):
-    state = _get_state(request.session, MyState)
-    print(state)
+    state = _get_state(request, MyState)
     """Playground page for testing components."""
     return Titled("FastState Demo",
         Main(

@@ -46,16 +46,16 @@ class ReactiveState(SQLModel):
 
 _STATE_REGISTRY: dict[str, ReactiveState] = {}
 
-def _get_state(session: dict, cls: type[ReactiveState]) -> ReactiveState:
+def _get_state(request: Request, cls: type[ReactiveState], id: str | None = None) -> ReactiveState:
     sid_key = f"{cls.__name__}_id"
-    sid = session.get(sid_key)
+    sid = request.session.get(sid_key)
 
     if sid and (state := _STATE_REGISTRY.get(sid)):
         return state
 
-    state = cls()
+    state = cls(id=id) if id else cls()
     _STATE_REGISTRY[state.id] = state
-    session[sid_key] = state.id
+    request.session[sid_key] = state.id
 
     return state
 
@@ -111,7 +111,7 @@ def _build_event_handler_and_url_generator(state_class: type['ReactiveState'], o
             return str(raw_val)
 
     async def _handler(request):
-        state = _get_state(request.session, state_class)
+        state = _get_state(request, state_class)
         before = state.model_dump()
 
         sig = inspect.signature(original_func)
