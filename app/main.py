@@ -193,15 +193,12 @@ app, rt = fast_app(
 # =============================================================================
 
 @rt('/')
-def index(req: Request, sess: dict, auth: str = None, my_state: MyState = None):
+def index(req: Request, sess: dict, my_state: MyState, auth: str = None):
     """
     Main page demonstrating session-scoped state with automatic injection.
     No more manual _get_state() calls needed!
     """
-    # Fallback if state injection failed
-    if my_state is None:
-        from faststate.state import _get_state
-        my_state = _get_state(MyState, req, sess)
+    # State automatically injected by FastHTML integration
     return Titled("FastState Demo - Enhanced with DI",
         Main(
             # Welcome message
@@ -270,22 +267,12 @@ def index(req: Request, sess: dict, auth: str = None, my_state: MyState = None):
 
 
 @rt('/profile')
-def profile(req: Request, sess: dict, auth: str = None, profile: UserProfileState = None):
+def profile(req: Request, sess: dict, profile: UserProfileState, auth: str = None):
     """
     User profile page with user-scoped state.
     Automatically handles authentication requirements.
     """
-    # Fallback if state injection failed
-    if profile is None:
-        from faststate.state import _get_state
-        try:
-            profile = _get_state(UserProfileState, req, sess)
-        except Exception as e:
-            return Div(
-                P(f"Authentication required: {str(e)}", cls="error text-red-500 font-bold"),
-                P(A("Login here", href="/login"), cls="text-blue-500"),
-                cls="p-4 bg-red-50 border border-red-200 rounded"
-            )
+    # State automatically injected by FastHTML integration
     
     return Titled("User Profile",
         Main(
@@ -340,22 +327,12 @@ def profile(req: Request, sess: dict, auth: str = None, profile: UserProfileStat
 
 
 @rt('/admin')
-def admin_panel(req: Request, sess: dict, auth: str = None, settings: GlobalSettingsState = None):
+def admin_panel(req: Request, sess: dict, settings: GlobalSettingsState, auth: str = None):
     """
     Admin panel with global state.
     Automatically enforces admin permissions via state registry.
     """
-    # Fallback if state injection failed
-    if settings is None:
-        from faststate.state import _get_state
-        try:
-            settings = _get_state(GlobalSettingsState, req, sess)
-        except Exception as e:
-            return Div(
-                P(f"Admin access required: {str(e)}", cls="error text-red-500 font-bold"),
-                P(A("Login as admin", href="/login"), cls="text-blue-500"),
-                cls="p-4 bg-red-50 border border-red-200 rounded"
-            )
+    # State automatically injected by FastHTML integration
     return Titled("Admin Panel",
         Main(
             Div(
@@ -419,22 +396,12 @@ def admin_panel(req: Request, sess: dict, auth: str = None, settings: GlobalSett
 
 
 @rt('/product/{record_id}')
-def product_detail(req: Request, sess: dict, auth: str = None, product: ProductState = None, record_id: int = None):
+def product_detail(req: Request, sess: dict, product: ProductState, record_id: int, auth: str = None):
     """
     Product detail page with record-scoped state.
     Demonstrates state tied to specific database records.
     """
-    # Fallback if state injection failed
-    if product is None:
-        from faststate.state import _get_state
-        try:
-            product = _get_state(ProductState, req, sess, record_id=record_id)
-        except Exception as e:
-            return Div(
-                P(f"Product access required: {str(e)}", cls="error text-red-500 font-bold"),
-                P(A("Login here", href="/login"), cls="text-blue-500"),
-                cls="p-4 bg-red-50 border border-red-200 rounded"
-            )
+    # State automatically injected by FastHTML integration
     
     # Initialize product data if empty (simulating database load)
     if not product.name:
