@@ -1,0 +1,23 @@
+[project]
+name = "faststate"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "ndendic", email = "ndendic@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "datastar-py==0.4.3",
+    "python-fasthtml>=0.12.19",
+    "sqlmodel>=0.0.24",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "monsterui>=1.0.21",
+]
