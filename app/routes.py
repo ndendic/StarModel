@@ -23,18 +23,19 @@ class MyState(ReactiveState):
     def increment(self, amount: int):
         self.myInt += amount
 
-    @event("/decrement",method="post")
-    def decrement(self, amount: int):
+    @event("/decrement")
+    def decrement(self,amount: int):
         self.myInt -= amount
+        self.updates()
 
     @event("/reset")
     def reset(self):
         self.myInt = 0
 
-    @event(method="patch")
-    def set_myStr(self, value: str):
-        self.myStr = value
-
+    @event()
+    def set_myStr(self, myStr: str):
+        self.myStr = myStr
+        
     @event(selector="#ticker-box", merge_mode="inner")
     def start_ticking(self):
         self.tick_count += 1
@@ -72,6 +73,11 @@ class MyState(ReactiveState):
             Div("$myStr: ",Span(data_text="$myStr"), cls=TextT.extrabold),
             data_signals=json.dumps(self.model_dump()))
 
+    @event("/updates",method="get", selector="#updates")
+    async def updates(self):
+        yield Div(data_signals=json.dumps(self.model_dump()), id="updates")
+        # await asyncio.sleep(5)
+
 @rt('/')
 def index(request):
     state = _get_state(request.session, MyState)
@@ -79,7 +85,7 @@ def index(request):
     """Playground page for testing components."""
     return Titled("FastState Demo",
         Main(
-            Div(data_signals=json.dumps(state.model_dump())),
+            Div(data_signals=json.dumps(state.model_dump()), id="updates"),
             state,            
             Input(data_bind="$myStr",data_on_change=MyState.set_myStr(), cls="mt-4"),        
             H1("Counter: ", Span(data_text="$myInt"), cls="mt-4"),
