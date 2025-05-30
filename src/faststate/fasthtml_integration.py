@@ -34,8 +34,20 @@ def patch_fasthtml_for_state_injection():
         # Store original add_route method
         original_add_route = FastHTML.add_route
         
-        def enhanced_add_route(self, path, endpoint, methods=None, **kwargs):
+        def enhanced_add_route(self, *args, **kwargs):
             """Enhanced route addition that wraps handlers with state injection."""
+            
+            # Handle different call patterns from FastHTML
+            if len(args) >= 2:
+                # Called as add_route(path, endpoint, ...)
+                path, endpoint = args[0], args[1]
+                remaining_args = args[2:]
+            elif len(args) == 1 and hasattr(args[0], '__call__'):
+                # Called as add_route(route_object)
+                return original_add_route(self, *args, **kwargs)
+            else:
+                # Unknown pattern, pass through
+                return original_add_route(self, *args, **kwargs)
             
             # Inspect the endpoint function for state parameters
             if callable(endpoint):
@@ -144,7 +156,7 @@ def patch_fasthtml_for_state_injection():
                         endpoint = sync_state_injecting_wrapper
             
             # Call original add_route with potentially wrapped endpoint
-            return original_add_route(self, path, endpoint, methods, **kwargs)
+            return original_add_route(self, path, endpoint, *remaining_args, **kwargs)
         
         # Apply the patch
         FastHTML.add_route = enhanced_add_route
