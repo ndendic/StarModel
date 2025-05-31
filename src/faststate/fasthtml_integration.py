@@ -12,7 +12,6 @@ from typing import Any, Callable
 from fasthtml.common import Request
 
 from .registry import state_registry
-from .auth import set_current_auth, set_user_permissions, set_user_roles, set_user_id, clear_auth_context
 
 
 def patch_fasthtml_for_state_injection():
@@ -34,8 +33,20 @@ def patch_fasthtml_for_state_injection():
         # Store original add_route method
         original_add_route = FastHTML.add_route
         
-        def enhanced_add_route(self, path, endpoint, methods=None, **kwargs):
+        def enhanced_add_route(self, *args, **kwargs):
             """Enhanced route addition that wraps handlers with state injection."""
+            
+            # Handle different call patterns from FastHTML
+            if len(args) >= 2:
+                # Called as add_route(path, endpoint, ...)
+                path, endpoint = args[0], args[1]
+                remaining_args = args[2:]
+            elif len(args) == 1 and hasattr(args[0], '__call__'):
+                # Called as add_route(route_object)
+                return original_add_route(self, *args, **kwargs)
+            else:
+                # Unknown pattern, pass through
+                return original_add_route(self, *args, **kwargs)
             
             # Inspect the endpoint function for state parameters
             if callable(endpoint):
@@ -51,100 +62,64 @@ def patch_fasthtml_for_state_injection():
                     if asyncio.iscoroutinefunction(endpoint):
                         @wraps(endpoint)
                         async def async_state_injecting_wrapper(*args, **kwargs):
-                            try:
-                                # Extract special FastHTML parameters
-                                req = kwargs.get('req') or kwargs.get('request')
-                                sess = kwargs.get('sess') or kwargs.get('session') or {}
-                                auth = kwargs.get('auth')
-                                
-                                if not req:
-                                    # Try to find request in args
-                                    for arg in args:
-                                        if isinstance(arg, Request):
-                                            req = arg
-                                            break
-                                
-                                if not req:
-                                    raise ValueError("Request object not available for state injection")
-                                
-                                # Set auth context for the request
-                                _setup_auth_context(auth, req, sess)
-                                
-                                # Inject state instances
-                                for param_name, state_type in state_params:
-                                    if param_name not in kwargs:
-                                        try:
-                                            state_instance = state_registry.resolve_state(state_type, req, sess, auth)
-                                            kwargs[param_name] = state_instance
-                                        except Exception as e:
-                                            # Handle auth/permission errors gracefully
-                                            if isinstance(e, (PermissionError, ValueError)):
-                                                # Return error response
-                                                from fasthtml.common import P, Div
-                                                return Div(
-                                                    P(f"Authentication Error: {str(e)}", cls="error text-red-500 font-bold"),
-                                                    cls="p-4 bg-red-50 border border-red-200 rounded"
-                                                )
-                                            raise
-                                
-                                # Call original function
-                                return await endpoint(*args, **kwargs)
-                            finally:
-                                # Clean up auth context
-                                clear_auth_context()
+                            # Extract special FastHTML parameters
+                            req = kwargs.get('req') or kwargs.get('request')
+                            sess = kwargs.get('sess') or kwargs.get('session') or {}
+                            auth = kwargs.get('auth')
+                            
+                            if not req:
+                                # Try to find request in args
+                                for arg in args:
+                                    if isinstance(arg, Request):
+                                        req = arg
+                                        break
+                            
+                            if not req:
+                                raise ValueError("Request object not available for state injection")
+                            
+                            # Inject state instances
+                            for param_name, state_type in state_params:
+                                if param_name not in kwargs:
+                                    state_instance = state_registry.resolve_state(state_type, req, sess, auth)
+                                    kwargs[param_name] = state_instance
+                            
+                            # Call original function
+                            return await endpoint(*args, **kwargs)
                         
                         # Use the wrapper instead of original endpoint
                         endpoint = async_state_injecting_wrapper
                     else:
                         @wraps(endpoint)
                         def sync_state_injecting_wrapper(*args, **kwargs):
-                            try:
-                                # Extract special FastHTML parameters
-                                req = kwargs.get('req') or kwargs.get('request')
-                                sess = kwargs.get('sess') or kwargs.get('session') or {}
-                                auth = kwargs.get('auth')
-                                
-                                if not req:
-                                    # Try to find request in args
-                                    for arg in args:
-                                        if isinstance(arg, Request):
-                                            req = arg
-                                            break
-                                
-                                if not req:
-                                    raise ValueError("Request object not available for state injection")
-                                
-                                # Set auth context for the request
-                                _setup_auth_context(auth, req, sess)
-                                
-                                # Inject state instances
-                                for param_name, state_type in state_params:
-                                    if param_name not in kwargs:
-                                        try:
-                                            state_instance = state_registry.resolve_state(state_type, req, sess, auth)
-                                            kwargs[param_name] = state_instance
-                                        except Exception as e:
-                                            # Handle auth/permission errors gracefully
-                                            if isinstance(e, (PermissionError, ValueError)):
-                                                # Return error response
-                                                from fasthtml.common import P, Div
-                                                return Div(
-                                                    P(f"Authentication Error: {str(e)}", cls="error text-red-500 font-bold"),
-                                                    cls="p-4 bg-red-50 border border-red-200 rounded"
-                                                )
-                                            raise
-                                
-                                # Call original function
-                                return endpoint(*args, **kwargs)
-                            finally:
-                                # Clean up auth context
-                                clear_auth_context()
+                            # Extract special FastHTML parameters
+                            req = kwargs.get('req') or kwargs.get('request')
+                            sess = kwargs.get('sess') or kwargs.get('session') or {}
+                            auth = kwargs.get('auth')
+                            
+                            if not req:
+                                # Try to find request in args
+                                for arg in args:
+                                    if isinstance(arg, Request):
+                                        req = arg
+                                        break
+                            
+                            if not req:
+                                raise ValueError("Request object not available for state injection")
+                            
+                            # Inject state instances
+                            for param_name, state_type in state_params:
+                                if param_name not in kwargs:
+                                    state_instance = state_registry.resolve_state(state_type, req, sess, auth)
+                                    kwargs[param_name] = state_instance
+                            
+                            # Call original function
+                            return endpoint(*args, **kwargs)
                         
                         # Use the wrapper instead of original endpoint
                         endpoint = sync_state_injecting_wrapper
             
             # Call original add_route with potentially wrapped endpoint
-            return original_add_route(self, path, endpoint, methods, **kwargs)
+            return original_add_route(self, path, endpoint, *remaining_args, **kwargs)
         
         # Apply the patch
         FastHTML.add_route = enhanced_add_route
@@ -160,32 +135,6 @@ def patch_fasthtml_for_state_injection():
         return False
 
 
-def _setup_auth_context(auth: str, req: Request, sess: dict):
-    """
-    Set up authentication context for the current request.
-    
-    This function sets the auth context that can be used by authentication
-    decorators and state resolution logic.
-    
-    Args:
-        auth: Authentication string from FastHTML
-        req: Request object
-        sess: Session dictionary
-    """
-    # Set basic auth
-    set_current_auth(auth)
-    
-    if auth:
-        # Set user ID (can be overridden by custom auth implementation)
-        set_user_id(auth)
-        
-        # Load user permissions and roles from session or custom implementation
-        # This is where you would integrate with your auth system
-        user_permissions = sess.get(f'user_permissions_{auth}', [])
-        user_roles = sess.get(f'user_roles_{auth}', [])
-        
-        set_user_permissions(user_permissions)
-        set_user_roles(user_roles)
 
 
 def initialize_faststate():
@@ -212,51 +161,6 @@ def initialize_faststate():
     return success
 
 
-def register_auth_provider(
-    get_permissions_fn: Callable[[str], list[str]] = None,
-    get_roles_fn: Callable[[str], list[str]] = None,
-    get_user_id_fn: Callable[[str], str] = None
-):
-    """
-    Register custom authentication provider functions.
-    
-    This allows you to integrate FastState with your existing authentication
-    and authorization system.
-    
-    Args:
-        get_permissions_fn: Function to get user permissions from auth string
-        get_roles_fn: Function to get user roles from auth string  
-        get_user_id_fn: Function to extract user ID from auth string
-        
-    Example:
-        ```python
-        def get_user_permissions(auth_string):
-            user = User.get_by_username(auth_string)
-            return [perm.name for perm in user.permissions]
-        
-        def get_user_roles(auth_string):
-            user = User.get_by_username(auth_string)
-            return [role.name for role in user.roles]
-        
-        register_auth_provider(
-            get_permissions_fn=get_user_permissions,
-            get_roles_fn=get_user_roles
-        )
-        ```
-    """
-    from . import auth
-    
-    if get_permissions_fn:
-        auth._get_user_permissions_impl = get_permissions_fn
-        print("✓ Custom permissions provider registered")
-    
-    if get_roles_fn:
-        auth._get_user_roles_impl = get_roles_fn
-        print("✓ Custom roles provider registered")
-    
-    if get_user_id_fn:
-        auth._get_user_id_impl = get_user_id_fn
-        print("✓ Custom user ID provider registered")
 
 
 def create_state_middleware():
@@ -270,20 +174,10 @@ def create_state_middleware():
         Middleware function that can be added to FastHTML app
     """
     def state_middleware(request: Request, call_next):
-        """Middleware that sets up state context for each request."""
-        try:
-            # Set up auth context from session
-            auth = request.scope.get('auth')
-            sess = getattr(request, 'session', {})
-            
-            _setup_auth_context(auth, request, sess)
-            
-            # Process request
-            response = call_next(request)
-            return response
-        finally:
-            # Clean up context
-            clear_auth_context()
+        """Middleware that processes state injection for each request."""
+        # Process request normally - state injection happens at route level
+        response = call_next(request)
+        return response
     
     return state_middleware
 
@@ -302,8 +196,6 @@ def get_state_info() -> dict:
             {
                 'class_name': cls.__name__,
                 'scope': config.scope.value,
-                'requires_auth': config.requires_auth,
-                'permissions': config.permissions,
                 'auto_persist': config.auto_persist,
                 'ttl': config.ttl
             }

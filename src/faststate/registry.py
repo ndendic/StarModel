@@ -22,17 +22,10 @@ class StateScope(Enum):
 
 @dataclass
 class StateConfig:
-    """Configuration for a state class defining its scope, authentication, and persistence."""
+    """Configuration for a state class defining its scope and persistence."""
     scope: StateScope = StateScope.SESSION
-    requires_auth: bool = False
     ttl: Optional[int] = None  # Time to live in seconds
     auto_persist: bool = False
-    permissions: list[str] = field(default_factory=list)
-    
-    def __post_init__(self):
-        """Validate configuration after initialization."""
-        if self.scope == StateScope.USER and not self.requires_auth:
-            raise ValueError(f"User-scoped states must require authentication")
 
 
 class FastStateRegistry:
@@ -52,16 +45,9 @@ class FastStateRegistry:
         
         Args:
             state_cls: The ReactiveState subclass to register
-            config: Configuration defining scope, auth requirements, etc.
-            
-        Raises:
-            ValueError: If configuration is invalid
+            config: Configuration defining scope, persistence, etc.
         """
         self._state_configs[state_cls] = config
-        
-        # Validate configuration
-        if config.scope == StateScope.USER and not config.requires_auth:
-            raise ValueError(f"User-scoped state {state_cls.__name__} must require authentication")
     
     def is_state_type(self, annotation: Any) -> bool:
         """
@@ -84,7 +70,7 @@ class FastStateRegistry:
         
         return annotation in self._state_configs
     
-    def resolve_state(self, state_cls: Type, req: Request, sess: dict, auth: Optional[str]) -> 'ReactiveState':
+    def resolve_state(self, state_cls: Type, req: Request, sess: dict, auth: Optional[str] = None) -> 'ReactiveState':
         """
         Resolve state instance based on registered configuration.
         
@@ -92,26 +78,15 @@ class FastStateRegistry:
             state_cls: The state class to resolve
             req: FastHTML request object
             sess: Session dictionary
-            auth: Authentication string (username/user_id)
+            auth: Authentication string (optional, for USER scope)
             
         Returns:
             State instance for the given scope and context
             
         Raises:
-            PermissionError: If authentication/authorization fails
             ValueError: If required parameters are missing
         """
         config = self._state_configs[state_cls]
-        
-        # Authentication check
-        if config.requires_auth and not auth:
-            raise PermissionError(f"State {state_cls.__name__} requires authentication")
-        
-        # Permission check
-        if config.permissions and auth:
-            user_permissions = self._get_user_permissions(auth)
-            if not any(perm in user_permissions for perm in config.permissions):
-                raise PermissionError(f"Insufficient permissions for {state_cls.__name__}. Required: {config.permissions}")
         
         # Generate state key
         state_key = self._generate_state_key(state_cls, config, req, sess, auth)
@@ -230,21 +205,6 @@ class FastStateRegistry:
         # For now, return None to always create new instances
         return None
     
-    def _get_user_permissions(self, auth: str) -> list[str]:
-        """
-        Get user permissions - implement based on your auth system.
-        
-        This is a placeholder that will be enhanced in the auth phase.
-        
-        Args:
-            auth: Authentication string
-            
-        Returns:
-            List of user permissions
-        """
-        # TODO: This would integrate with your user/permission system
-        # For now, return empty list
-        return []
     
     def get_config(self, state_cls: Type) -> Optional[StateConfig]:
         """
