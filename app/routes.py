@@ -78,7 +78,7 @@ class MyState(ReactiveState):
         yield Div(data_signals=json.dumps(self.model_dump()), id="updates")
         # await asyncio.sleep(5)
 
-@rt('/')
+@rt('/playground')
 def index(request):
     state = _get_state(request, MyState)
     """Playground page for testing components."""

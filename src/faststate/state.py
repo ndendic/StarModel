@@ -46,7 +46,23 @@ class ReactiveState(SQLModel):
 
 _STATE_REGISTRY: dict[str, ReactiveState] = {}
 
-def _get_state(request: Request, cls: type[ReactiveState], id: str | None = None) -> ReactiveState:
+async def _get_state(request: Request, cls: type[ReactiveState], id: str | None = None) -> ReactiveState:
+    """
+    Get state instance for the given request. Uses state registry when available,
+    falls back to legacy behavior for backward compatibility.
+    """
+    # Try to use the state registry first if available
+    try:
+        from .registry import state_registry
+        if state_registry.is_state_type(cls):
+            # Extract session and auth from request for registry
+            session = getattr(request, 'session', {})
+            auth = getattr(request, 'auth', None)  # May be set by beforeware
+            return await state_registry.resolve_state(cls, request, session, auth)
+    except (ImportError, AttributeError, KeyError):
+        pass
+    
+    # Fallback to legacy state management for backward compatibility
     sid_key = f"{cls.__name__}_id"
     sid = request.session.get(sid_key)
 
@@ -111,7 +127,7 @@ def _build_event_handler_and_url_generator(state_class: type['ReactiveState'], o
             return str(raw_val)
 
     async def _handler(request):
-        state = _get_state(request, state_class)
+        state = await _get_state(request, state_class)
         before = state.model_dump()
 
         sig = inspect.signature(original_func)
@@ -144,6 +160,43 @@ def _build_event_handler_and_url_generator(state_class: type['ReactiveState'], o
 
         out = await original_func(state, **bound) if asyncio.iscoroutinefunction(original_func) else original_func(state, **bound)
         after = state.model_dump()
+        
+        # Broadcast state changes via SSE manager if available and state has changed
+        state_changes = {k: v for k, v in after.items() if before.get(k) != v}
+        if state_changes:
+            try:
+                from .registry import state_registry
+                from .sse_manager import sse_manager
+                from .registry import StateScope
+                
+                # Get state configuration if registered
+                if state_registry.is_state_type(state_class):
+                    config = state_registry._state_configs.get(state_class)
+                    if config:
+                        # Extract context for broadcasting
+                        session = getattr(request, 'session', {})
+                        auth = getattr(request, 'auth', None)
+                        session_id = session.get('session_id') or session.get('_session_id')
+                        user_id = auth if isinstance(auth, str) else None
+                        
+                        # Determine record_id for RECORD scope
+                        record_id = None
+                        if config.scope == StateScope.RECORD:
+                            record_id = getattr(state, 'id', None) or request.query_params.get('record_id')
+                        
+                        # Broadcast the changes
+                        sse_manager.broadcast_state_change(
+                            state_class_name=state_class.__name__,
+                            state_changes=state_changes,
+                            scope=config.scope,
+                            session_id=session_id,
+                            user_id=user_id,
+                            record_id=record_id
+                        )
+            except (ImportError, AttributeError) as e:
+                # SSE manager not available, continue without broadcasting
+                print(f"Warning: SSE broadcasting not available: {e}")
+                pass
 
         async def stream_response_content():
             for ev_data in state._diff_and_events(before, after):
@@ -232,3 +285,58 @@ def event(
     else: # _func_or_pos_path is None (e.g., @event() or @event(method="post", path="kw/path"))
         effective_custom_path = path # Use keyword path if provided, else None
         return _configure_and_get_decorator(effective_custom_path) # Returns the _decorator
+
+
+# SSE Connection Management Functions
+# ========================================
+
+async def create_sse_connection_handler(request: Request):
+    """
+    Create an SSE connection for real-time state updates.
+    
+    This endpoint allows clients to establish persistent SSE connections
+    to receive broadcast state updates based on their subscriptions.
+    """
+    try:
+        from .sse_manager import sse_manager
+        
+        # Extract connection parameters
+        query_params = request.query_params
+        session = getattr(request, 'session', {})
+        auth = getattr(request, 'auth', None)
+        
+        session_id = session.get('session_id') or session.get('_session_id') or str(uuid.uuid4())
+        user_id = auth if isinstance(auth, str) else None
+        subscribed_states = query_params.get('states', '').split(',') if query_params.get('states') else []
+        
+        # Clean up state names
+        subscribed_states = [s.strip() for s in subscribed_states if s.strip()]
+        
+        # Create SSE connection
+        connection = sse_manager.create_connection(
+            session_id=session_id,
+            user_id=user_id,
+            subscribed_states=subscribed_states
+        )
+        
+        # Return SSE stream
+        return StreamingResponse(
+            sse_manager.get_sse_stream(connection.connection_id),
+            media_type="text/event-stream",
+            headers=SSE_HEADERS
+        )
+        
+    except ImportError:
+        # SSE manager not available, return empty stream
+        async def empty_stream():
+            yield SSE.create_event(data={"error": "SSE manager not available"})
+        
+        return StreamingResponse(
+            empty_stream(),
+            media_type="text/event-stream",
+            headers=SSE_HEADERS
+        )
+
+
+# Register the SSE connection endpoint
+rt("/faststate/sse", methods=["GET"])(create_sse_connection_handler)

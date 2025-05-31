@@ -8,6 +8,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Install dependencies**: `uv sync` (uses uv for dependency management)
 - **Add dependencies**: `uv add <package-name>`
 - **Install dev dependencies**: `uv sync --group dev`
+- **Run tests**: `python test_<test_name>.py` (tests are standalone scripts)
+- **Run all tests**: Execute individual test files directly (no unified test runner configured)
 
 ## Project Architecture
 
@@ -26,10 +28,11 @@ FastState is a reactive state management system that integrates FastHTML with Da
    - Generates SSE responses for real-time state updates
    - Handles parameter conversion from query strings and JSON payloads
 
-3. **State Registry** (`_STATE_REGISTRY`):
-   - Global registry tracking active state instances
-   - Session-based state retrieval and management
-   - Automatic state lifecycle management
+3. **State Registry** (`src/faststate/registry.py`):
+   - Global registry tracking active state instances with configurable scopes
+   - Supports SESSION, GLOBAL, and USER scopes for different state lifecycles
+   - Session-based state retrieval and management via `state_registry.resolve_state()`
+   - Automatic state lifecycle management and caching
 
 ### Key Patterns
 
@@ -82,7 +85,24 @@ class MyState(ReactiveState):
 
 ### Development Notes
 
-- State instances are tied to sessions via `_get_state()` function
+- State instances are tied to sessions via `_get_state()` function and registry system
 - Parameter conversion handles string-to-type conversion from query params
-- Error handling returns styled error components
+- Error handling returns styled error components using MonsterUI styles
 - Custom routing paths can override default `ClassName/method_name` pattern
+- FastHTML integration occurs via `initialize_faststate()` and middleware system
+- Demo application in `app/main.py` shows session-scoped and global-scoped state examples
+
+### Integration with FastHTML
+
+- `initialize_faststate()` sets up automatic FastHTML integration
+- State classes are automatically registered with configurable scopes via `StateConfig`
+- Routes are auto-generated and merged with existing FastHTML routes
+- Dependency injection provides seamless state access in route handlers
+- Backward compatibility maintained with existing route patterns
+
+### Testing Structure
+
+- Tests are standalone Python scripts (no pytest/unittest framework)
+- Each test file can be run independently: `python test_<name>.py`
+- Tests cover registry functionality, FastHTML integration, and state behavior
+- Manual verification required as tests don't use assertion frameworks

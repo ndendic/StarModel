@@ -5,10 +5,13 @@ This module provides the core state configuration and registry system that manag
 different state scopes and configurations for automatic dependency injection.
 """
 
-from typing import Type, Dict, Any, Optional, get_origin, get_args
+from typing import Type, Dict, Any, Optional, get_origin, get_args, TYPE_CHECKING
 from enum import Enum
 from dataclasses import dataclass, field
 from fasthtml.common import Request
+
+if TYPE_CHECKING:
+    from .state import ReactiveState
 
 
 class StateScope(Enum):
@@ -26,6 +29,7 @@ class StateConfig:
     scope: StateScope = StateScope.SESSION
     ttl: Optional[int] = None  # Time to live in seconds
     auto_persist: bool = False
+    persistence_backend: Optional[str] = None  # Name of persistence backend to use
 
 
 class FastStateRegistry:
@@ -70,7 +74,7 @@ class FastStateRegistry:
         
         return annotation in self._state_configs
     
-    def resolve_state(self, state_cls: Type, req: Request, sess: dict, auth: Optional[str] = None) -> 'ReactiveState':
+    async def resolve_state(self, state_cls: Type, req: Request, sess: dict, auth: Optional[str] = None) -> 'ReactiveState':
         """
         Resolve state instance based on registered configuration.
         
@@ -95,9 +99,21 @@ class FastStateRegistry:
         if state_key in self._state_instances:
             return self._state_instances[state_key]
         
-        # Create new instance
-        state = self._create_state_instance(state_cls, config, req, sess, auth)
+        # Try to load from persistence if enabled
+        state = None
+        if config.auto_persist and config.persistence_backend:
+            state = await self._load_from_persistence(state_cls, state_key, config)
+        
+        # Create new instance if not found in persistence
+        if state is None:
+            state = self._create_state_instance(state_cls, config, req, sess, auth)
+        
+        # Cache the instance
         self._state_instances[state_key] = state
+        
+        # Save to persistence if auto_persist is enabled and this is a new instance
+        if config.auto_persist and config.persistence_backend:
+            await self._save_to_persistence(state, state_key, config)
         
         # Maintain compatibility with existing session storage
         if config.scope == StateScope.SESSION:
@@ -188,22 +204,66 @@ class FastStateRegistry:
         # Create new instance
         return state_cls()
     
-    def _load_from_persistence(self, state_cls: Type, record_id: str) -> Optional['ReactiveState']:
+    async def _load_from_persistence(self, state_cls: Type, state_key: str, config: StateConfig) -> Optional['ReactiveState']:
         """
-        Load state from persistence layer - implement based on your needs.
-        
-        This is a placeholder that will be enhanced in the persistence phase.
+        Load state from persistence layer.
         
         Args:
             state_cls: State class type
-            record_id: Record identifier
+            state_key: State key to load
+            config: State configuration
             
         Returns:
             Loaded state instance or None
         """
-        # TODO: This would integrate with your database/Redis/etc.
-        # For now, return None to always create new instances
+        try:
+            from .persistence import persistence_manager
+            
+            backend_name = config.persistence_backend or "default"
+            state_data = await persistence_manager.load_state(state_key, backend_name)
+            
+            if state_data:
+                # Create instance and populate with loaded data
+                state = state_cls()
+                for field_name, value in state_data.items():
+                    if hasattr(state, field_name):
+                        setattr(state, field_name, value)
+                return state
+                
+        except ImportError:
+            pass
+        
         return None
+    
+    async def _save_to_persistence(self, state: 'ReactiveState', state_key: str, config: StateConfig) -> bool:
+        """
+        Save state to persistence layer.
+        
+        Args:
+            state: State instance to save
+            state_key: State key for storage
+            config: State configuration
+            
+        Returns:
+            True if save was successful, False otherwise
+        """
+        try:
+            from .persistence import persistence_manager
+            
+            backend_name = config.persistence_backend or "default"
+            state_data = state.model_dump()
+            
+            return await persistence_manager.save_state(
+                state_key, 
+                state_data, 
+                ttl=config.ttl,
+                backend=backend_name
+            )
+            
+        except ImportError:
+            pass
+        
+        return False
     
     
     def get_config(self, state_cls: Type) -> Optional[StateConfig]:
