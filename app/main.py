@@ -1,8 +1,9 @@
 """
 FastState Demo Application
 
-This application demonstrates the complete FastState system with automatic
-dependency injection, authentication, and different state scopes.
+This application demonstrates the FastState system with automatic
+dependency injection and different state scopes.
+Authentication is handled via FastHTML beforeware.
 """
 
 import json
@@ -12,7 +13,7 @@ from monsterui.all import *
 # Import FastState components
 from faststate import (
     ReactiveState, event, StateScope, StateConfig, state_registry,
-    initialize_faststate, requires_auth
+    initialize_faststate
 )
 
 # Import existing routes and state routes for backward compatibility
@@ -62,14 +63,12 @@ class UserProfileState(ReactiveState):
     preferences: dict = {}
     
     @event
-    @requires_auth()
     def update_profile(self, name: str, email: str):
         self.name = name
         self.email = email
         return Div("Profile updated successfully!", cls="text-green-600 font-bold")
     
     @event
-    @requires_auth()
     def set_preference(self, key: str, value: str):
         if not isinstance(self.preferences, dict):
             self.preferences = {}
@@ -84,20 +83,17 @@ class GlobalSettingsState(ReactiveState):
     announcement: str = ""
     
     @event
-    @requires_auth(permissions=['admin'])
     def toggle_maintenance(self):
         self.maintenance_mode = not self.maintenance_mode
         status = "enabled" if self.maintenance_mode else "disabled"
         return Div(f"Maintenance mode {status}!", cls="text-orange-600 font-bold")
     
     @event
-    @requires_auth(permissions=['admin'])
     def set_announcement(self, message: str):
         self.announcement = message
         return Div("Announcement updated!", cls="text-blue-600 font-bold")
     
     @event
-    @requires_auth(permissions=['admin'])
     def change_theme(self, theme: str):
         self.theme = theme
         return Div(f"Theme changed to {theme}!", cls="text-purple-600 font-bold")
@@ -111,7 +107,6 @@ class ProductState(ReactiveState):
     in_stock: bool = True
     
     @event
-    @requires_auth(permissions=['product.edit'])
     def update_product(self, name: str, price: float, description: str):
         self.name = name
         self.price = price
@@ -119,7 +114,6 @@ class ProductState(ReactiveState):
         return Div("Product updated!", cls="text-green-600 font-bold")
     
     @event
-    @requires_auth(permissions=['inventory.manage'])
     def toggle_stock(self):
         self.in_stock = not self.in_stock
         status = "in stock" if self.in_stock else "out of stock"
@@ -138,20 +132,16 @@ state_registry.register(
     StateConfig(scope=StateScope.SESSION)
 )
 
-# Register UserProfileState with user scope (requires authentication)
+# Register UserProfileState with user scope
 state_registry.register(
     UserProfileState,
-    StateConfig(scope=StateScope.USER, requires_auth=True)
+    StateConfig(scope=StateScope.USER)
 )
 
-# Register GlobalSettingsState with global scope and admin permissions
+# Register GlobalSettingsState with global scope
 state_registry.register(
     GlobalSettingsState,
-    StateConfig(
-        scope=StateScope.GLOBAL, 
-        requires_auth=True,
-        permissions=['admin']
-    )
+    StateConfig(scope=StateScope.GLOBAL)
 )
 
 # Register ProductState with record scope for specific products
@@ -159,13 +149,24 @@ state_registry.register(
     ProductState,
     StateConfig(
         scope=StateScope.RECORD, 
-        requires_auth=True,
-        permissions=['product.view'],
         auto_persist=True
     )
 )
 
 print("✅ State registration complete!")
+
+# =============================================================================
+# AUTHENTICATION BEFOREWARE
+# =============================================================================
+
+def auth_beforeware(req, sess):
+    """
+    Simple authentication beforeware using FastHTML/Starlette pattern.
+    This demonstrates how to handle auth outside of FastState.
+    """
+    # Simple demo auth - in real apps, integrate with your auth system
+    auth = sess.get('auth')
+    return auth  # This will be available as 'auth' parameter in routes
 
 # =============================================================================
 # FASTHTML APP SETUP
@@ -180,6 +181,7 @@ app, rt = fast_app(
     live=True,
     pico=False,
     htmx=False,
+    before=auth_beforeware,  # Add auth beforeware
     hdrs=(
         monsterui_headers,
         custom_theme_css,
@@ -539,9 +541,9 @@ if __name__ == "__main__":
     print("Features enabled:")
     print("✅ Automatic state dependency injection")
     print("✅ Session, User, Global, and Record-scoped states")
-    print("✅ Authentication and authorization")
+    print("✅ FastHTML beforeware for authentication")
     print("✅ Real-time state synchronization via SSE")
-    print("✅ Backward compatibility with existing routes")
+    print("✅ Simplified architecture without built-in auth")
     print("\nVisit http://localhost:5000 to see the demo!")
     print("="*60)
     
