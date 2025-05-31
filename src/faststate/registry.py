@@ -114,10 +114,6 @@ class FastStateRegistry:
         # Save to persistence if auto_persist is enabled and this is a new instance
         if config.auto_persist and config.persistence_backend:
             await self._save_to_persistence(state, state_key, config)
-        
-        # Maintain compatibility with existing session storage
-        if config.scope == StateScope.SESSION:
-            sess[f"{state_cls.__name__}_id"] = state.id
             
         return state
     
@@ -146,7 +142,10 @@ class FastStateRegistry:
                 return f"global:{class_name}"
             
             case StateScope.SESSION:
-                session_id = sess.get('session_id') or str(id(sess))
+                session_id = req.cookies.get('session_')[:100]
+                if not session_id:
+                    session_id = str(id(sess))
+                    sess['session_'] = session_id
                 return f"session:{session_id}:{class_name}"
             
             case StateScope.USER:
@@ -158,7 +157,7 @@ class FastStateRegistry:
                 component_id = req.query_params.get('component_id')
                 if not component_id:
                     raise ValueError(f"Component-scoped state {class_name} requires component_id parameter")
-                session_id = sess.get('session_id') or str(id(sess))
+                session_id = req.cookies.get('session_')[:100]
                 return f"component:{session_id}:{component_id}:{class_name}"
             
             case StateScope.RECORD:

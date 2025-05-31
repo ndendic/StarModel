@@ -57,24 +57,11 @@ async def _get_state(request: Request, cls: type[ReactiveState], id: str | None 
         if state_registry.is_state_type(cls):
             # Extract session and auth from request for registry
             session = getattr(request, 'session', {})
-            auth = getattr(request, 'auth', None)  # May be set by beforeware
+            auth = session.get('auth', None)
+            # auth = getattr(request, 'auth', None)  # May be set by beforeware
             return await state_registry.resolve_state(cls, request, session, auth)
     except (ImportError, AttributeError, KeyError):
         pass
-    
-    # Fallback to legacy state management for backward compatibility
-    sid_key = f"{cls.__name__}_id"
-    sid = request.session.get(sid_key)
-
-    if sid and (state := _STATE_REGISTRY.get(sid)):
-        return state
-
-    state = cls(id=id) if id else cls()
-    _STATE_REGISTRY[state.id] = state
-    request.session[sid_key] = state.id
-
-    return state
-
 
 VERBS = {"get", "post", "put", "patch", "delete"}
 
@@ -175,8 +162,9 @@ def _build_event_handler_and_url_generator(state_class: type['ReactiveState'], o
                     if config:
                         # Extract context for broadcasting
                         session = getattr(request, 'session', {})
-                        auth = getattr(request, 'auth', None)
-                        session_id = session.get('session_id') or session.get('_session_id')
+                        auth = session.get('auth', None)
+                        # auth = getattr(request, 'auth', None)
+                        session_id = request.cookies.get('session_')[:100]
                         user_id = auth if isinstance(auth, str) else None
                         
                         # Determine record_id for RECORD scope
@@ -305,7 +293,7 @@ async def create_sse_connection_handler(request: Request):
         session = getattr(request, 'session', {})
         auth = getattr(request, 'auth', None)
         
-        session_id = session.get('session_id') or session.get('_session_id') or str(uuid.uuid4())
+        session_id = request.cookies.get('session_')[:100] or str(uuid.uuid4())
         user_id = auth if isinstance(auth, str) else None
         subscribed_states = query_params.get('states', '').split(',') if query_params.get('states') else []
         

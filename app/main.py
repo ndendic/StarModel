@@ -296,7 +296,7 @@ def auth_beforeware(req, sess):
     This demonstrates how to handle auth outside of FastState.
     """
     # Simple demo auth - in real apps, integrate with your auth system
-    auth = req.scope["user"] = sess.get("user", None)
+    auth = req.scope["user"] = sess.get("auth", None)
     if not auth:
         return RedirectResponse("/login", status_code=303)
 beforeware = Beforeware(
@@ -348,6 +348,8 @@ def index(req: Request, sess: dict, my_state: MyState, auth: str = None):
     Main page demonstrating session-scoped state with automatic injection.
     No more manual _get_state() calls needed!
     """
+    if not auth:
+        auth = sess.get('auth', None)
     # State automatically injected by FastHTML integration
     return Titled("FastState Demo - Enhanced with DI",
         Main(
@@ -363,7 +365,7 @@ def index(req: Request, sess: dict, my_state: MyState, auth: str = None):
             Div(
                 H2("📊 Current State Info", cls="text-2xl font-bold mb-4"),
                 Div(
-                    Div(f"Session ID: {sess.get('session_id', 'auto-generated')}", cls="font-mono text-sm"),
+                    Div(f"Session ID: {req.cookies.get('session_', 'auto-generated')[:100]}", cls="font-mono text-sm"),
                     Div(f"Auth: {auth or 'Not authenticated'}", cls="font-mono text-sm"),
                     Div(f"State ID: {my_state.id}", cls="font-mono text-sm"),
                     cls="bg-gray-100 p-4 rounded mb-6"
@@ -453,10 +455,10 @@ def profile(req: Request, sess: dict, profile: UserProfileState, auth: str = Non
                     H3("Update Profile", cls="text-lg font-bold mb-4"),
                     Form(
                         Input(value=profile.name, name="name", placeholder="Full Name", 
-                              cls="border rounded px-3 py-2 mb-3 w-full"),
+                              data_bind="$name", cls="border rounded px-3 py-2 mb-3 w-full"),
                         Input(value=profile.email, name="email", placeholder="Email Address", 
-                              cls="border rounded px-3 py-2 mb-3 w-full"),
-                        Button("Update Profile", type="submit", 
+                              data_bind="$email", cls="border rounded px-3 py-2 mb-3 w-full"),
+                        Button("Update Profile", type="submit", data_on_click=UserProfileState.update_profile(),
                                cls="bg-blue-500 text-white px-6 py-2 rounded"),
                         data_on_submit=UserProfileState.update_profile()
                     ),
@@ -623,7 +625,7 @@ def realtime_chat(req: Request, sess: dict, chat: ChatState, auth: str = None):
     """
     Real-time chat demo showcasing global state and SSE broadcasting.
     """
-    username = auth or sess.get('username', 'Anonymous')
+    username = auth or sess.get('auth', 'Anonymous')
     
     return Titled("Real-time Chat",
         Main(
@@ -722,7 +724,7 @@ def global_counter(req: Request, sess: dict, counter: CounterState, auth: str = 
     """
     Global counter demo with persistence and real-time synchronization.
     """
-    username = auth or sess.get('username', 'Anonymous')
+    username = auth or sess.get('auth', 'Anonymous')
     
     return Titled("Global Counter",
         Main(
@@ -875,7 +877,7 @@ def system_status(req: Request, sess: dict, auth: str = None):
                 Div(
                     H2("System Information", cls="text-xl font-bold mb-4"),
                     Div(
-                        Div(f"Session ID: {sess.get('session_id', 'auto-generated')}", cls="mb-2 font-mono text-sm"),
+                        Div(f"Session ID: {req.cookies.get('session_', 'auto-generated')[:100]}", cls="mb-2 font-mono text-sm"),
                         Div(f"Authentication: {auth or 'Not authenticated'}", cls="mb-2 font-mono text-sm"),
                         Div(f"FastState Version: Enhanced with SSE + Persistence", cls="mb-2 font-mono text-sm"),
                         cls="bg-gray-50 p-4 rounded mb-6"
@@ -991,9 +993,9 @@ def auth_demo(req: Request, sess: dict, user: str = "", permissions: str = ""):
     """
     if user:
         # Set mock authentication in session
-        sess['auth'] = user
-        sess[f'user_permissions_{user}'] = permissions.split(',') if permissions else []
-        sess[f'user_roles_{user}'] = ['admin'] if 'admin' in permissions else ['user']
+        req.session['auth'] = user
+        req.session[f'user_permissions_{user}'] = permissions.split(',') if permissions else []
+        req.session[f'user_roles_{user}'] = ['admin'] if 'admin' in permissions else ['user']
         
         return RedirectResponse("/", status_code=302)
     else:

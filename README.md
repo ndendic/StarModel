@@ -1,6 +1,6 @@
 # FastState
 
-**Work in Progress** =§
+**Work in Progress**
 
 A reactive state management system for Python web applications that combines FastHTML and Datastar to enable building interactive UIs entirely in Python - no JavaScript required.
 
@@ -68,16 +68,16 @@ The result is a full-stack reactive framework where:
 
 This project is actively being developed and refined. Current focus areas:
 
--  Core reactive state system
--  Event decorator and automatic route generation
--  SSE-based state synchronization
--  Parameter conversion and validation
--  Session-based state management
-- = Advanced streaming patterns
-- = Performance optimizations
-- = Documentation and examples
-- =Ë Testing framework integration
-- =Ë Production deployment patterns
+- Core reactive state system
+- Event decorator and automatic route generation
+- SSE-based state synchronization
+- Parameter conversion and validation
+- Session-based state management
+- Advanced streaming patterns
+- Performance optimizations
+- Documentation and examples
+- Testing framework integration
+- Production deployment patterns
 
 ## Getting Started
 
