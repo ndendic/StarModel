@@ -15,7 +15,7 @@ The current FastState implementation has several limitations that prevent it fro
 ### Current Problem
 ```python
 # Current approach - too simplistic
-_STATE_REGISTRY: dict[str, ReactiveState] = {}
+_STATE_REGISTRY: dict[str, State] = {}
 sid_key = f"{cls.__name__}_id"  # Only class name, no scoping
 ```
 
@@ -72,11 +72,11 @@ class StateIdentifier:
 ```python
 class StateRegistry:
     def __init__(self):
-        self._states: dict[str, ReactiveState] = {}
+        self._states: dict[str, State] = {}
         self._connections: dict[str, set[SSEConnection]] = {}  # Track SSE connections per state
         self._cleanup_tasks: dict[str, asyncio.Task] = {}
         
-    def get_state(self, identifier: StateIdentifier, cls: type[ReactiveState], **kwargs) -> ReactiveState:
+    def get_state(self, identifier: StateIdentifier, cls: type[State], **kwargs) -> State:
         key = identifier.generate_key()
         
         if key not in self._states:
@@ -202,14 +202,14 @@ async def get_current_user(request: Request) -> Optional[UserContext]:
 ```python
 class StateProvider:
     def __init__(self):
-        self.state_configs: dict[type[ReactiveState], StateConfig] = {}
+        self.state_configs: dict[type[State], StateConfig] = {}
         self.registry = StateRegistry()
     
-    def register_state(self, state_cls: type[ReactiveState], config: StateConfig):
+    def register_state(self, state_cls: type[State], config: StateConfig):
         """Register state class with configuration"""
         self.state_configs[state_cls] = config
     
-    async def get_state(self, state_cls: type[ReactiveState], request: Request, **kwargs) -> ReactiveState:
+    async def get_state(self, state_cls: type[State], request: Request, **kwargs) -> State:
         """Automatically resolve state based on configuration"""
         config = self.state_configs.get(state_cls)
         if not config:
@@ -241,7 +241,7 @@ class StateProvider:
 
 class StateConfig:
     def __init__(self, 
-                 state_cls: type[ReactiveState],
+                 state_cls: type[State],
                  scope: StateScope = StateScope.SESSION,
                  ttl: Optional[int] = None,
                  auto_persist: bool = False,

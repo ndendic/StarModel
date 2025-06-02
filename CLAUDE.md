@@ -25,8 +25,9 @@ FastState is a reactive state management system that integrates FastHTML with Da
 
 ### Core Components
 
-1. **ReactiveState Base Class** (`src/faststate/state.py`): 
+1. **State Base Class** (`src/faststate/state.py`): 
    - Inherits from SQLModel for data validation and optional persistence
+   - Provides simple `.get(req)` class method for explicit state resolution
    - Automatically generates SSE endpoints for decorated methods
    - Handles state synchronization between server and client via Datastar signals
    - Integrated with SSE broadcasting for real-time multi-user updates
@@ -41,9 +42,10 @@ FastState is a reactive state management system that integrates FastHTML with Da
 3. **State Registry** (`src/faststate/registry.py`):
    - Global registry tracking active state instances with configurable scopes
    - Supports SESSION, GLOBAL, USER, RECORD, and COMPONENT scopes
-   - Session-based state retrieval and management via `state_registry.resolve_state()`
+   - Session-based state retrieval and management via `state_registry.resolve_state_sync()`
    - Automatic state lifecycle management and caching
    - Integrated with persistence layer for automatic state loading/saving
+   - Powers the simple `.get()` method for explicit state resolution
 
 4. **SSE Connection Manager** (`src/faststate/sse_manager.py`):
    - Advanced SSE connection management with scope-aware broadcasting
@@ -57,14 +59,16 @@ FastState is a reactive state management system that integrates FastHTML with Da
    - Automatic state loading and saving with configurable TTL
    - Pluggable backend architecture for different storage needs
    - Production-ready with SQLAlchemy and Redis support
+   - Supports both async and sync operations for flexibility
 
 ### Key Patterns
 
-- **State classes** inherit from `ReactiveState` and define reactive properties
+- **State classes** inherit from `State` and define reactive properties
+- **Simple state access** via `MyState.get(req)` method for explicit resolution
 - **Event methods** use `@event` decorator for automatic route registration
 - **UI binding** uses Datastar `data-*` attributes for two-way binding
 - **State updates** automatically trigger SSE events to update client signals
-- **Session management** ties state instances to user sessions
+- **Session management** ties state instances to user sessions via registry
 - **Real-time collaboration** via scope-aware SSE broadcasting
 - **Automatic persistence** with configurable backends and TTL
 - **Production monitoring** with connection stats and health checks
@@ -79,15 +83,16 @@ FastState is a reactive state management system that integrates FastHTML with Da
 ### State Management Flow
 
 1. State class defines reactive properties and event handlers
-2. UI renders with `data-signals` containing initial state
-3. User interactions trigger events via Datastar `data-on-*` attributes
-4. Event handlers update state and return SSE responses
-5. Client receives SSE updates and automatically updates bound UI elements
+2. Route handlers use `MyState.get(req)` to access state instances
+3. UI renders with `data-signals` containing initial state
+4. User interactions trigger events via Datastar `data-on-*` attributes
+5. Event handlers update state and return SSE responses
+6. Client receives SSE updates and automatically updates bound UI elements
 
 ### Example State Class Structure
 
 ```python
-class MyState(ReactiveState):
+class MyState(State):
     # Reactive properties
     myInt: int = 0
     myStr: str = "Hello"
@@ -112,6 +117,15 @@ state_registry.register(
         ttl=3600  # 1 hour cache
     )
 )
+
+# Simple route usage with .get() method
+@rt('/')
+def index(req: Request, sess: dict, auth: str = None):
+    my_state = MyState.get(req, sess, auth)  # Explicit, clean state access
+    return Titled("My Page", 
+        Div(data_signals=json.dumps(my_state.model_dump())),
+        my_state  # Renders state UI automatically
+    )
 ```
 
 ### SSE and Streaming Patterns
@@ -123,20 +137,23 @@ state_registry.register(
 
 ### Development Notes
 
-- State instances are tied to sessions via `_get_state()` function and registry system
-- Parameter conversion handles string-to-type conversion from query params
-- Error handling returns styled error components using MonsterUI styles
-- Custom routing paths can override default `ClassName/method_name` pattern
-- FastHTML integration occurs via `initialize_faststate()` and middleware system
-- Demo application in `app/main.py` shows session-scoped and global-scoped state examples
+- **State Access**: Use `MyState.get(req)` for simple, explicit state resolution
+- **State Registration**: Register states with `state_registry.register()` for scope and persistence configuration
+- **Session Management**: State instances are automatically tied to sessions via registry system
+- **Parameter Conversion**: Event handlers handle string-to-type conversion from query params
+- **Error Handling**: Returns styled error components using MonsterUI styles
+- **Custom Routing**: Custom routing paths can override default `ClassName/method_name` pattern
+- **No Monkey Patching**: Clean architecture without FastHTML internal dependencies
+- **Demo Application**: `app/main.py` shows all state scopes and `.get()` method usage
 
 ### Integration with FastHTML
 
-- `initialize_faststate()` sets up automatic FastHTML integration
-- State classes are automatically registered with configurable scopes via `StateConfig`
-- Routes are auto-generated and merged with existing FastHTML routes
-- Dependency injection provides seamless state access in route handlers
-- Backward compatibility maintained with existing route patterns
+- **Simple API**: Use `MyState.get(req)` in any FastHTML route handler
+- **State Registration**: Register states with `state_registry.register()` for configuration
+- **Event Routes**: `@event` decorated methods are auto-generated as FastHTML routes
+- **Backward Compatibility**: Works alongside existing FastHTML patterns
+- **No Complex Setup**: Just call `initialize_faststate()` during app startup
+- **Clean Architecture**: No dependency injection complexity or monkey patching needed
 
 ### Real-time Features
 
@@ -186,8 +203,25 @@ The demo app (`app/main.py`) showcases all FastState capabilities:
 
 ## Important Development Notes
 
+- **State Access Pattern**: Use `MyState.get(req, sess, auth)` in route handlers for explicit state resolution
+- **State Lifecycle**: States are automatically cached per scope (session, global, user, record)
 - **Database File**: Demo app uses SQLite database (`app/faststate_demo.db`) for persistence testing
 - **Authentication**: Handled via FastHTML beforeware middleware system
 - **Route Integration**: Legacy routes in `app/routes.py` are merged with auto-generated state routes
-- **State Middleware**: Uses `create_state_middleware()` for dependency injection into FastHTML routes
+- **No Dependency Injection**: Clean, explicit API without complex middleware or patching
 - **Backward Compatibility**: Existing FastHTML patterns work alongside FastState enhancements
+
+## Simple State Access API
+
+```python
+# Basic usage in any route
+my_state = MyState.get(req)
+
+# With explicit session and auth
+my_state = MyState.get(req, sess, auth)
+
+# Multiple states in one route
+user_profile = UserProfileState.get(req)
+settings = GlobalSettingsState.get(req)
+product = ProductState.get(req)  # Uses record_id from URL params
+```

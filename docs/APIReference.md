@@ -15,14 +15,14 @@ This document provides a complete API reference for all FastState classes, funct
 
 ## Core Classes
 
-### ReactiveState
+### State
 
 **Module**: `faststate.state`
 
 Base class for all reactive state management. Inherits from SQLModel for data validation and persistence.
 
 ```python
-class ReactiveState(SQLModel):
+class State(SQLModel):
     """Base class for reactive state management with automatic SSE generation."""
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
 ```
@@ -70,7 +70,7 @@ Render state as FastHTML component for direct template use.
 
 **Example**:
 ```python
-class MyState(ReactiveState):
+class MyState(State):
     count: int = 0
     
     def __ft__(self):
@@ -120,7 +120,7 @@ def event(
 
 ##### Basic Event
 ```python
-class CounterState(ReactiveState):
+class CounterState(State):
     count: int = 0
     
     @event
@@ -259,16 +259,16 @@ Central registry managing state types, configurations, and instance caching.
 class FastStateRegistry:
     def __init__(self):
         self._state_configs: Dict[Type, StateConfig] = {}
-        self._state_instances: Dict[str, 'ReactiveState'] = {}
+        self._state_instances: Dict[str, 'State'] = {}
 ```
 
 #### Methods
 
-##### `register(state_cls: Type[ReactiveState], config: StateConfig) -> None`
+##### `register(state_cls: Type[State], config: StateConfig) -> None`
 Register a state class for automatic dependency injection.
 
 **Parameters**:
-- `state_cls` (`Type[ReactiveState]`): State class to register
+- `state_cls` (`Type[State]`): State class to register
 - `config` (`StateConfig`): Configuration for the state class
 
 **Example**:
@@ -294,7 +294,7 @@ assert state_registry.is_state_type(str) == False
 assert state_registry.is_state_type(Optional[MyState]) == True  # Handles generics
 ```
 
-##### `resolve_state(state_cls: Type, req: Request, sess: dict, auth: Optional[str] = None) -> ReactiveState`
+##### `resolve_state(state_cls: Type, req: Request, sess: dict, auth: Optional[str] = None) -> State`
 Resolve state instance based on registered configuration.
 
 **Parameters**:
@@ -303,7 +303,7 @@ Resolve state instance based on registered configuration.
 - `sess` (`dict`): Session dictionary
 - `auth` (`Optional[str]`): Authentication string
 
-**Returns**: `ReactiveState` - State instance for the given scope and context
+**Returns**: `State` - State instance for the given scope and context
 
 **Raises**:
 - `ValueError`: If required parameters are missing (e.g., record_id for RECORD scope)
@@ -325,7 +325,7 @@ Get configuration for a registered state class.
 ##### `clear_instance_cache() -> None`
 Clear all cached state instances. Useful for testing.
 
-##### `get_cached_instances() -> Dict[str, ReactiveState]`
+##### `get_cached_instances() -> Dict[str, State]`
 Get all cached state instances. Useful for debugging.
 
 **Returns**: `dict` - Copy of cached instances by state key
@@ -440,15 +440,15 @@ print(f"Cached: {info['cached_instances']}")
 Legacy function for manual state retrieval (use automatic injection instead).
 
 ```python
-def _get_state(state_cls: Type[ReactiveState], request: Request, session: dict) -> ReactiveState
+def _get_state(state_cls: Type[State], request: Request, session: dict) -> State
 ```
 
 **Parameters**:
-- `state_cls` (`Type[ReactiveState]`): State class to retrieve
+- `state_cls` (`Type[State]`): State class to retrieve
 - `request` (`Request`): FastHTML request object
 - `session` (`dict`): Session dictionary
 
-**Returns**: `ReactiveState` - State instance
+**Returns**: `State` - State instance
 
 **Example**:
 ```python

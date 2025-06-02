@@ -19,14 +19,14 @@ from unittest.mock import Mock, AsyncMock
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from faststate import (
-    ReactiveState, event, StateScope, StateConfig, state_registry,
+    State, event, StateScope, StateConfig, state_registry,
     sse_manager, persistence_manager, MemoryStatePersistence,
     DatabaseStatePersistence
 )
 from fasthtml.common import Request
 
 
-class TestState(ReactiveState):
+class TestState(State):
     """Test state class for integration testing."""
     count: int = 0
     name: str = "test"

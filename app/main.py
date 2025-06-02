@@ -12,7 +12,7 @@ from monsterui.all import *
 
 # Import FastState components
 from faststate import (
-    ReactiveState, event, StateScope, StateConfig, state_registry, sse_manager, persistence_manager,
+    State, event, StateScope, StateConfig, state_registry, sse_manager, persistence_manager,
     MemoryStatePersistence, DatabaseStatePersistence
 )
 
@@ -39,7 +39,7 @@ print("✅ Memory persistence backend added")
 # STATE DEFINITIONS WITH DIFFERENT SCOPES
 # =============================================================================
 
-class MyState(ReactiveState):
+class MyState(State):
     """Session-scoped state - each user session gets its own instance."""
     myInt: int = 0
     myStr: str = "Hello"
@@ -67,7 +67,7 @@ class MyState(ReactiveState):
         return H4("Tick #", Span(data_text="$tick_count"), cls="text-red-500")
 
 
-class UserProfileState(ReactiveState):
+class UserProfileState(State):
     """User-scoped state - persists across sessions for authenticated users."""
     name: str = ""
     email: str = ""
@@ -97,7 +97,7 @@ class UserProfileState(ReactiveState):
         return Div(f"Preference {key} set to {value}", cls="text-blue-600")
 
 
-class GlobalSettingsState(ReactiveState):
+class GlobalSettingsState(State):
     """Global state - shared across all users (admin only)."""
     theme: str = "light"
     maintenance_mode: bool = False
@@ -120,7 +120,7 @@ class GlobalSettingsState(ReactiveState):
         return Div(f"Theme changed to {theme}!", cls="text-purple-600 font-bold")
 
 
-class ProductState(ReactiveState):
+class ProductState(State):
     """Record-scoped state - tied to specific product records."""
     name: str = ""
     price: float = 0.0
@@ -141,7 +141,7 @@ class ProductState(ReactiveState):
         return Div(f"Product marked as {status}!", cls="text-blue-600 font-bold")
 
 
-class ChatState(ReactiveState):
+class ChatState(State):
     """Global chat state for real-time collaboration demo."""
     messages: list = []
     active_users: int = 0
@@ -187,7 +187,7 @@ class ChatState(ReactiveState):
         return Div(f"{username} left the chat.", cls="text-orange-600")
 
 
-class CounterState(ReactiveState):
+class CounterState(State):
     """Enhanced counter with persistence and real-time sync."""
     count: int = 0
     last_updated_by: str = ""
@@ -213,6 +213,11 @@ class CounterState(ReactiveState):
         self.last_updated_by = user
         self.update_count += 1
         return Div(f"Counter reset by {user}", cls="text-blue-600")
+    
+    @event(selector="#counter-state")
+    def push(self):
+        return Div({"data-signals": json.dumps(self.model_dump()), "data-on-load__delay.1s": self.push()}, id="counter-state"),
+    
 
 
 # =============================================================================
@@ -729,6 +734,7 @@ def global_counter(req: Request, sess: dict, auth: str = None):
     username = auth or sess.get('auth', 'Anonymous')
     
     return Titled("Global Counter",
+        Div({"data-signals": json.dumps(counter.model_dump()), "data-on-load__delay.1s": counter.push()}, id="counter-state"),
         Main(
             Div(
                 H1("🔢 Global Counter Demo", cls="text-3xl font-bold mb-6"),
@@ -744,7 +750,6 @@ def global_counter(req: Request, sess: dict, auth: str = None):
                 """),
                 
                 # Counter state display
-                Div(data_signals=json.dumps(counter.model_dump()), id="counter-state"),
                 
                 # Counter display
                 Div(

@@ -10,12 +10,12 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from faststate.registry import StateScope, StateConfig, FastStateRegistry
-from faststate.state import ReactiveState
+from faststate.state import State
 from fasthtml.common import Request
 from unittest.mock import Mock
 
 
-class TestState(ReactiveState):
+class TestState(State):
     name: str = "test"
     count: int = 0
 

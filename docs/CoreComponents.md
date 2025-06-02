@@ -4,7 +4,7 @@ This document provides detailed technical documentation for each core component 
 
 ## Table of Contents
 
-1. [ReactiveState Base Class](#reactivestate-base-class)
+1. [State Base Class](#reactivestate-base-class)
 2. [State Registry System](#state-registry-system)
 3. [FastHTML Integration Layer](#fasthtml-integration-layer)
 4. [Event Decorator System](#event-decorator-system)
@@ -12,16 +12,16 @@ This document provides detailed technical documentation for each core component 
 
 ---
 
-## ReactiveState Base Class
+## State Base Class
 
 **Location**: `src/faststate/state.py`
 
-The `ReactiveState` class is the foundation of the FastState system, providing reactive state management with automatic SSE generation.
+The `State` class is the foundation of the FastState system, providing reactive state management with automatic SSE generation.
 
 ### Class Definition
 
 ```python
-class ReactiveState(SQLModel):
+class State(SQLModel):
     """
     Base class for reactive state management with automatic SSE generation.
     
@@ -54,7 +54,7 @@ Inherits all SQLModel capabilities:
 The `@event` decorator automatically registers methods as HTTP endpoints:
 
 ```python
-class MyState(ReactiveState):
+class MyState(State):
     count: int = 0
     
     @event  # Creates /MyState/increment endpoint
@@ -175,7 +175,7 @@ The registry manages all state types and instances.
 class FastStateRegistry:
     def __init__(self):
         self._state_configs: Dict[Type, StateConfig] = {}
-        self._state_instances: Dict[str, 'ReactiveState'] = {}
+        self._state_instances: Dict[str, 'State'] = {}
 ```
 
 - **_state_configs**: Maps state classes to their configurations
@@ -184,7 +184,7 @@ class FastStateRegistry:
 #### State Registration
 
 ```python
-def register(self, state_cls: Type['ReactiveState'], config: StateConfig):
+def register(self, state_cls: Type['State'], config: StateConfig):
     """Register a state class for automatic dependency injection."""
     self._state_configs[state_cls] = config
 ```
@@ -197,7 +197,7 @@ def register(self, state_cls: Type['ReactiveState'], config: StateConfig):
 #### State Resolution
 
 ```python
-def resolve_state(self, state_cls: Type, req: Request, sess: dict, auth: Optional[str] = None) -> 'ReactiveState':
+def resolve_state(self, state_cls: Type, req: Request, sess: dict, auth: Optional[str] = None) -> 'State':
     """Resolve state instance based on registered configuration."""
     config = self._state_configs[state_cls]
     
@@ -268,7 +268,7 @@ def _generate_state_key(self, state_cls: Type, config: StateConfig,
 
 ```python
 def _create_state_instance(self, state_cls: Type, config: StateConfig,
-                          req: Request, sess: dict, auth: Optional[str]) -> 'ReactiveState':
+                          req: Request, sess: dict, auth: Optional[str]) -> 'State':
     """Create new state instance, optionally loading from persistence."""
     if config.scope == StateScope.RECORD:
         # For record-scoped states, try to load from database first
@@ -285,7 +285,7 @@ def _create_state_instance(self, state_cls: Type, config: StateConfig,
     # Create new instance
     return state_cls()
 
-def _load_from_persistence(self, state_cls: Type, record_id: str) -> Optional['ReactiveState']:
+def _load_from_persistence(self, state_cls: Type, record_id: str) -> Optional['State']:
     """Load state from persistence layer."""
     # Future: Integrate with database/Redis/etc.
     # For now, return None to always create new instances
@@ -502,11 +502,11 @@ def event(path: str = None, method: str = "post", selector: str = "#updates",
 
 ### Route Registration Process
 
-When a `ReactiveState` class is defined, the metaclass automatically registers event routes:
+When a `State` class is defined, the metaclass automatically registers event routes:
 
 ```python
-class ReactiveStateMeta(type):
-    """Metaclass for ReactiveState that auto-registers event routes."""
+class StateMeta(type):
+    """Metaclass for State that auto-registers event routes."""
     
     def __new__(cls, name, bases, attrs):
         new_class = super().__new__(cls, name, bases, attrs)

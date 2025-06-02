@@ -5,7 +5,7 @@ A powerful state management system that integrates with FastHTML's dependency in
 to provide automatic state management with scoping and real-time updates.
 """
 
-from .state import ReactiveState, event, _get_state
+from .state import State, event, _get_state
 from .registry import StateScope, StateConfig, FastStateRegistry, state_registry
 # from .fasthtml_integration import (
 #     initialize_faststate, create_state_middleware, get_state_info
@@ -18,7 +18,7 @@ from .persistence import (
 
 __all__ = [
     # Core state components
-    'ReactiveState',
+    'State',
     'event',
     '_get_state',
     

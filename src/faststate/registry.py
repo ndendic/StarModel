@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from fasthtml.common import Request
 
 if TYPE_CHECKING:
-    from .state import ReactiveState
+    from .state import State
 
 
 class StateScope(Enum):
@@ -41,14 +41,14 @@ class FastStateRegistry:
     
     def __init__(self):
         self._state_configs: Dict[Type, StateConfig] = {}
-        self._state_instances: Dict[str, 'ReactiveState'] = {}
+        self._state_instances: Dict[str, 'State'] = {}
     
-    def register(self, state_cls: Type['ReactiveState'], config: StateConfig):
+    def register(self, state_cls: Type['State'], config: StateConfig):
         """
         Register a state class for automatic dependency injection.
         
         Args:
-            state_cls: The ReactiveState subclass to register
+            state_cls: The State subclass to register
             config: Configuration defining scope, persistence, etc.
         """
         self._state_configs[state_cls] = config
@@ -74,7 +74,7 @@ class FastStateRegistry:
         
         return annotation in self._state_configs
     
-    def resolve_state_sync(self, state_cls: Type, req: Request, sess: dict, auth: Optional[str] = None) -> 'ReactiveState':
+    def resolve_state_sync(self, state_cls: Type, req: Request, sess: dict, auth: Optional[str] = None) -> 'State':
         """
         Resolve state instance based on registered configuration (synchronous version).
         
@@ -117,7 +117,7 @@ class FastStateRegistry:
             
         return state
     
-    async def resolve_state(self, state_cls: Type, req: Request, sess: dict, auth: Optional[str] = None) -> 'ReactiveState':
+    async def resolve_state(self, state_cls: Type, req: Request, sess: dict, auth: Optional[str] = None) -> 'State':
         """
         Resolve state instance based on registered configuration.
         
@@ -217,7 +217,7 @@ class FastStateRegistry:
                 raise ValueError(f"Unknown scope: {config.scope}")
     
     def _create_state_instance(self, state_cls: Type, config: StateConfig,
-                              req: Request, sess: dict, auth: Optional[str]) -> 'ReactiveState':
+                              req: Request, sess: dict, auth: Optional[str]) -> 'State':
         """
         Create new state instance, optionally loading from persistence.
         
@@ -246,7 +246,7 @@ class FastStateRegistry:
         # Create new instance
         return state_cls()
     
-    def _load_from_persistence_sync(self, state_cls: Type, state_key: str, config: StateConfig) -> Optional['ReactiveState']:
+    def _load_from_persistence_sync(self, state_cls: Type, state_key: str, config: StateConfig) -> Optional['State']:
         """
         Load state from persistence layer (synchronous version).
         
@@ -278,7 +278,7 @@ class FastStateRegistry:
         
         return None
 
-    def _save_to_persistence_sync(self, state: 'ReactiveState', state_key: str, config: StateConfig) -> bool:
+    def _save_to_persistence_sync(self, state: 'State', state_key: str, config: StateConfig) -> bool:
         """
         Save state to persistence layer (synchronous version).
         
@@ -308,7 +308,7 @@ class FastStateRegistry:
         
         return False
     
-    async def _load_from_persistence(self, state_cls: Type, state_key: str, config: StateConfig) -> Optional['ReactiveState']:
+    async def _load_from_persistence(self, state_cls: Type, state_key: str, config: StateConfig) -> Optional['State']:
         """
         Load state from persistence layer.
         
@@ -339,7 +339,7 @@ class FastStateRegistry:
         
         return None
     
-    async def _save_to_persistence(self, state: 'ReactiveState', state_key: str, config: StateConfig) -> bool:
+    async def _save_to_persistence(self, state: 'State', state_key: str, config: StateConfig) -> bool:
         """
         Save state to persistence layer.
         
@@ -386,7 +386,7 @@ class FastStateRegistry:
         """Clear all cached state instances. Useful for testing."""
         self._state_instances.clear()
     
-    def get_cached_instances(self) -> Dict[str, 'ReactiveState']:
+    def get_cached_instances(self) -> Dict[str, 'State']:
         """Get all cached state instances. Useful for debugging."""
         return self._state_instances.copy()
 

@@ -22,7 +22,7 @@ A complete todo application demonstrating CRUD operations, filtering, and real-t
 
 ```python
 from fasthtml.common import *
-from faststate import ReactiveState, event, StateScope, StateConfig, state_registry, initialize_faststate
+from faststate import State, event, StateScope, StateConfig, state_registry, initialize_faststate
 from typing import List, Optional
 from datetime import datetime
 import json
@@ -46,7 +46,7 @@ class TodoItem:
             "created_at": self.created_at.isoformat()
         }
 
-class TodoState(ReactiveState):
+class TodoState(State):
     """Todo application state with filtering and statistics."""
     items: List[dict] = Field(default_factory=list)
     filter_mode: str = "all"  # all, active, completed
@@ -262,7 +262,7 @@ class Product:
             "description": self.description
         }
 
-class ProductCatalogState(ReactiveState):
+class ProductCatalogState(State):
     """Product catalog with search and filtering."""
     products: List[dict] = Field(default_factory=list)
     search_query: str = ""
@@ -414,7 +414,7 @@ class ProductCatalogState(ReactiveState):
             cls="border rounded-lg shadow hover:shadow-lg transition-shadow"
         )
 
-class ShoppingCartState(ReactiveState):
+class ShoppingCartState(State):
     """Shopping cart state."""
     items: List[dict] = Field(default_factory=list)
     
@@ -507,7 +507,7 @@ def cart_page(cart: ShoppingCartState):
 ### Modal Dialog Management
 
 ```python
-class ModalState(ReactiveState):
+class ModalState(State):
     """State for managing modal dialogs."""
     is_open: bool = False
     title: str = ""
@@ -601,7 +601,7 @@ def users_page(modal: ModalState):
 ### Form Validation and Error Handling
 
 ```python
-class ContactFormState(ReactiveState):
+class ContactFormState(State):
     """Contact form with comprehensive validation."""
     # Form fields
     name: str = ""
@@ -810,7 +810,7 @@ class ContactFormState(ReactiveState):
 ### Infinite Scroll and Pagination
 
 ```python
-class PaginatedListState(ReactiveState):
+class PaginatedListState(State):
     """State for paginated list with infinite scroll."""
     items: List[dict] = Field(default_factory=list)
     page: int = 1

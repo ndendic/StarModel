@@ -14,7 +14,7 @@ from sqlmodel import Field, SQLModel
 
 rt = APIRouter()
 
-class ReactiveState(SQLModel):
+class State(SQLModel):
     # id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
 
@@ -45,7 +45,7 @@ class ReactiveState(SQLModel):
                 setattr(cls, name, url_generator_static_method)
 
     @classmethod
-    def get(cls, req: Request, sess: dict = None, auth: str = None) -> 'ReactiveState':
+    def get(cls, req: Request, sess: dict = None, auth: str = None) -> 'State':
         """
         Get state instance for this state class from the request context.
         
@@ -78,8 +78,7 @@ class ReactiveState(SQLModel):
         # Fallback: create new instance (for backward compatibility)
         return cls()
 
-
-async def _get_state(request: Request, cls: type[ReactiveState], id: str | None = None) -> ReactiveState:
+async def _get_state(request: Request, cls: type[State], id: str | None = None) -> State:
     """
     Get state instance for the given request. Uses state registry when available,
     falls back to legacy behavior for backward compatibility.
@@ -99,7 +98,7 @@ async def _get_state(request: Request, cls: type[ReactiveState], id: str | None 
 VERBS = {"get", "post", "put", "patch", "delete"}
 
 # ------------------------------------------------------------------ #
-def _build_event_handler_and_url_generator(state_class: type['ReactiveState'], original_func, event_config: dict):
+def _build_event_handler_and_url_generator(state_class: type['State'], original_func, event_config: dict):
     # Resolve the route path: custom or default
     custom_path_from_config = event_config.get('custom_route_path')
     final_route_path: str
@@ -306,7 +305,6 @@ def event(
     else: # _func_or_pos_path is None (e.g., @event() or @event(method="post", path="kw/path"))
         effective_custom_path = path # Use keyword path if provided, else None
         return _configure_and_get_decorator(effective_custom_path) # Returns the _decorator
-
 
 # SSE Connection Management Functions
 # ========================================

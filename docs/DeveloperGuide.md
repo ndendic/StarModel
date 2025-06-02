@@ -32,7 +32,7 @@ uv add fasthtml datastar-py sqlmodel
 ```python
 from fasthtml.common import *
 from faststate import (
-    ReactiveState, event, StateScope, StateConfig, 
+    State, event, StateScope, StateConfig, 
     state_registry, initialize_faststate
 )
 
@@ -46,7 +46,7 @@ app, rt = fast_app()
 ### 3. Define Your First State
 
 ```python
-class CounterState(ReactiveState):
+class CounterState(State):
     """Simple counter state for demonstration."""
     count: int = 0
     message: str = "Welcome to FastState!"
@@ -119,7 +119,7 @@ if __name__ == "__main__":
 #### 1. Simple Data State
 
 ```python
-class UserPreferences(ReactiveState):
+class UserPreferences(State):
     """User preferences state."""
     theme: str = "light"
     language: str = "en"
@@ -143,7 +143,7 @@ class UserPreferences(ReactiveState):
 #### 2. Form State Management
 
 ```python
-class ContactForm(ReactiveState):
+class ContactForm(State):
     """Contact form state with validation."""
     name: str = ""
     email: str = ""
@@ -191,7 +191,7 @@ class ContactForm(ReactiveState):
 #### 3. Shopping Cart State
 
 ```python
-class ShoppingCart(ReactiveState):
+class ShoppingCart(State):
     """Shopping cart state with items management."""
     items: List[dict] = Field(default_factory=list)
     total: float = 0.0
@@ -319,7 +319,7 @@ def profile(req: Request, sess: dict, profile: UserProfile, auth: str = None):
 Best for user-specific data that doesn't need to persist across sessions.
 
 ```python
-class ShoppingSession(ReactiveState):
+class ShoppingSession(State):
     """Session-scoped shopping state."""
     viewed_products: List[int] = Field(default_factory=list)
     current_category: str = "all"
@@ -343,7 +343,7 @@ state_registry.register(
 For data that should persist across user sessions.
 
 ```python
-class UserProfile(ReactiveState):
+class UserProfile(State):
     """User-scoped persistent profile."""
     name: str = ""
     email: str = ""
@@ -374,7 +374,7 @@ state_registry.register(
 For application-wide shared state.
 
 ```python
-class AppSettings(ReactiveState):
+class AppSettings(State):
     """Global application settings."""
     maintenance_mode: bool = False
     announcement: str = ""
@@ -408,7 +408,7 @@ state_registry.register(
 For data tied to specific database records.
 
 ```python
-class DocumentEditor(ReactiveState):
+class DocumentEditor(State):
     """Record-scoped document editing state."""
     document_id: int = 0
     content: str = ""
@@ -515,7 +515,7 @@ def is_admin(user_id: str) -> bool:
 ### User-Scoped State with Authentication
 
 ```python
-class UserDashboard(ReactiveState):
+class UserDashboard(State):
     """User-specific dashboard state."""
     widgets: List[dict] = Field(default_factory=list)
     layout: str = "grid"
@@ -576,7 +576,7 @@ def sensitive_data(data: SensitiveDataState, auth: str = None):
 ### Custom Event Responses
 
 ```python
-class NotificationState(ReactiveState):
+class NotificationState(State):
     """State with custom event responses."""
     messages: List[dict] = Field(default_factory=list)
     
@@ -611,7 +611,7 @@ class NotificationState(ReactiveState):
 ### Async Event Handlers
 
 ```python
-class AsyncDataProcessor(ReactiveState):
+class AsyncDataProcessor(State):
     """State with async event processing."""
     status: str = "idle"
     progress: float = 0.0
@@ -646,7 +646,7 @@ class AsyncDataProcessor(ReactiveState):
 ### State Composition
 
 ```python
-class CompositeState(ReactiveState):
+class CompositeState(State):
     """State that composes multiple sub-states."""
     user_data: dict = Field(default_factory=dict)
     app_settings: dict = Field(default_factory=dict)
@@ -692,7 +692,7 @@ def register_plugin_states(plugin_config: dict):
             )
         )
 
-def create_dynamic_state_class(name: str, config: dict) -> Type[ReactiveState]:
+def create_dynamic_state_class(name: str, config: dict) -> Type[State]:
     """Create state class from configuration."""
     attrs = {}
     
@@ -708,7 +708,7 @@ def create_dynamic_state_class(name: str, config: dict) -> Type[ReactiveState]:
         attrs[method_name] = event(method)
     
     # Create class
-    return type(name, (ReactiveState,), attrs)
+    return type(name, (State,), attrs)
 ```
 
 ---
@@ -745,7 +745,7 @@ def cleanup_expired_states():
 ### Efficient SSE Updates
 
 ```python
-class OptimizedState(ReactiveState):
+class OptimizedState(State):
     """State optimized for minimal SSE updates."""
     # Group related fields to reduce update frequency
     user_info: dict = Field(default_factory=dict)
@@ -773,7 +773,7 @@ class OptimizedState(ReactiveState):
 ### Database Integration
 
 ```python
-class PersistentState(ReactiveState, table=True):
+class PersistentState(State, table=True):
     """State with automatic database persistence."""
     __tablename__ = "user_states"
     
@@ -804,7 +804,7 @@ class PersistentState(ReactiveState, table=True):
 
 ```python
 import pytest
-from faststate import ReactiveState, event
+from faststate import State, event
 
 class TestCounterState:
     def test_increment(self):

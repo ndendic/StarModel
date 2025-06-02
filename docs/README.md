@@ -20,7 +20,7 @@ FastState provides automatic dependency injection, real-time state synchronizati
    - Data flow and SSE integration
 
 2. **[Core Components](CoreComponents.md)** 🔧
-   - ReactiveState base class internals
+   - State base class internals
    - State registry system
    - FastHTML integration layer
    - Event decorator system
@@ -75,7 +75,7 @@ uv add fasthtml datastar-py sqlmodel
 ```python
 from fasthtml.common import *
 from faststate import (
-    ReactiveState, event, StateScope, StateConfig, 
+    State, event, StateScope, StateConfig, 
     state_registry, initialize_faststate
 )
 import json
@@ -84,7 +84,7 @@ import json
 initialize_faststate()
 
 # 2. Define your state
-class CounterState(ReactiveState):
+class CounterState(State):
     count: int = 0
     message: str = "Hello FastState!"
     
@@ -145,7 +145,7 @@ if __name__ == "__main__":
 │     Route Handler     │    State Registry    │   SSE Events    │
 │   (Auto Injection)   │   (Scope Management) │ (Real-time UI)  │
 ├─────────────────────────────────────────────────────────────────┤
-│                    ReactiveState Classes                       │
+│                    State Classes                       │
 │              (Business Logic + Event Handlers)                 │
 ├─────────────────────────────────────────────────────────────────┤
 │                    SQLModel/Pydantic                          │
@@ -180,7 +180,7 @@ state_registry.register(DocumentEditor, StateConfig(scope=StateScope.RECORD))
 
 ### ✅ Automatic SSE Updates
 ```python
-class MyState(ReactiveState):
+class MyState(State):
     count: int = 0
     
     @event  # Automatically creates /MyState/increment endpoint
@@ -200,7 +200,7 @@ app, rt = fast_app(before=auth_beforeware)
 
 ### ✅ Type Safety and Validation
 ```python
-class UserState(ReactiveState):
+class UserState(State):
     name: str = ""
     email: EmailStr = ""  # Pydantic validation
     age: int = Field(ge=0, le=150)  # Field validation
@@ -242,7 +242,7 @@ class UserState(ReactiveState):
 
 ```python
 # 1. Define state class
-class MyFeatureState(ReactiveState):
+class MyFeatureState(State):
     # Add your fields with type hints
     data: str = ""
     

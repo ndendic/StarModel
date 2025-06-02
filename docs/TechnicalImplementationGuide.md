@@ -58,9 +58,9 @@ class FastStateRegistry:
     
     def __init__(self):
         self._state_configs: Dict[Type, StateConfig] = {}
-        self._state_instances: Dict[str, 'ReactiveState'] = {}
+        self._state_instances: Dict[str, 'State'] = {}
     
-    def register(self, state_cls: Type['ReactiveState'], config: StateConfig):
+    def register(self, state_cls: Type['State'], config: StateConfig):
         """Register a state class for automatic dependency injection"""
         self._state_configs[state_cls] = config
         
@@ -79,7 +79,7 @@ class FastStateRegistry:
         
         return annotation in self._state_configs
     
-    def resolve_state(self, state_cls: Type, req: Request, sess: dict, auth: Optional[str]) -> 'ReactiveState':
+    def resolve_state(self, state_cls: Type, req: Request, sess: dict, auth: Optional[str]) -> 'State':
         """Resolve state instance based on registered configuration"""
         config = self._state_configs[state_cls]
         
@@ -149,7 +149,7 @@ class FastStateRegistry:
                 raise ValueError(f"Unknown scope: {config.scope}")
     
     def _create_state_instance(self, state_cls: Type, config: StateConfig,
-                              req: Request, sess: dict, auth: Optional[str]) -> 'ReactiveState':
+                              req: Request, sess: dict, auth: Optional[str]) -> 'State':
         """Create new state instance, optionally loading from persistence"""
         
         if config.scope == StateScope.RECORD:
@@ -167,7 +167,7 @@ class FastStateRegistry:
         # Create new instance
         return state_cls()
     
-    def _load_from_persistence(self, state_cls: Type, record_id: str) -> Optional['ReactiveState']:
+    def _load_from_persistence(self, state_cls: Type, record_id: str) -> Optional['State']:
         """Load state from persistence layer - implement based on your needs"""
         # This would integrate with your database/Redis/etc.
         # For now, return None to always create new instances
@@ -358,7 +358,7 @@ def initialize_faststate():
 # app/main.py - COMPLETE EXAMPLE
 from fasthtml.common import *
 from faststate import (
-    ReactiveState, StateScope, StateConfig, state_registry, 
+    State, StateScope, StateConfig, state_registry, 
     initialize_faststate, requires_auth
 )
 
@@ -366,7 +366,7 @@ from faststate import (
 initialize_faststate()
 
 # Define your state classes
-class MyState(ReactiveState):
+class MyState(State):
     myInt: int = 0
     myStr: str = "Hello"
     
@@ -374,7 +374,7 @@ class MyState(ReactiveState):
     def increment(self, amount: int):
         self.myInt += amount
 
-class UserProfileState(ReactiveState):
+class UserProfileState(State):
     name: str = ""
     email: str = ""
     
@@ -384,7 +384,7 @@ class UserProfileState(ReactiveState):
         self.name = name
         self.email = email
 
-class GlobalSettingsState(ReactiveState):
+class GlobalSettingsState(State):
     theme: str = "light"
     maintenance_mode: bool = False
     
@@ -393,7 +393,7 @@ class GlobalSettingsState(ReactiveState):
     def toggle_maintenance(self):
         self.maintenance_mode = not self.maintenance_mode
 
-class ProductState(ReactiveState):
+class ProductState(State):
     name: str = ""
     price: float = 0.0
     description: str = ""
@@ -695,7 +695,7 @@ sse_manager = StateSSEManager()
 ```python
 # Update to src/faststate/state.py - enhance existing _build_event_handler_and_url_generator
 
-def _build_event_handler_and_url_generator(state_class: type['ReactiveState'], original_func, event_config: dict):
+def _build_event_handler_and_url_generator(state_class: type['State'], original_func, event_config: dict):
     # ... existing code for route path resolution ...
     
     async def _handler(request):

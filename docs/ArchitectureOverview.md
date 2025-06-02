@@ -29,7 +29,7 @@ FastState follows these key principles:
 │     Route Handler     │    State Registry    │   SSE Events    │
 │   (Auto Injection)   │   (Scope Management) │ (Real-time UI)  │
 ├─────────────────────────────────────────────────────────────────┤
-│                    ReactiveState Classes                       │
+│                    State Classes                       │
 │              (Business Logic + Event Handlers)                 │
 ├─────────────────────────────────────────────────────────────────┤
 │                    SQLModel/Pydantic                          │
@@ -94,7 +94,7 @@ Route Function ← Injected State Instance ← State Registry
 ### 4. Event Handling and SSE
 
 ```python
-class MyState(ReactiveState):
+class MyState(State):
     count: int = 0
     
     @event  # Automatically creates /MyState/increment endpoint

@@ -20,9 +20,9 @@ FastState introduces a novel approach to web application state management by cre
 ## How It Works
 
 ```python
-from faststate import ReactiveState, event
+from faststate import State, event
 
-class CounterState(ReactiveState):
+class CounterState(State):
     count: int = 0
     
     @event
@@ -33,22 +33,27 @@ class CounterState(ReactiveState):
     def reset(self):
         self.count = 0
 
-# In your FastHTML template
-def counter_ui(state):
-    return Div(
-        H1("Count: ", Span(data_text="$count")),
-        Button("+", data_on_click=CounterState.increment(1)),
-        Button("Reset", data_on_click=CounterState.reset()),
-        data_signals=json.dumps(state.model_dump())
+# In your FastHTML route
+@rt('/')
+def home(req: Request, sess: dict):
+    counter = CounterState.get(req)  # Simple, explicit state access
+    return Titled("Counter App",
+        Div(
+            H1("Count: ", Span(data_text="$count")),
+            Button("+", data_on_click=CounterState.increment(1)),
+            Button("Reset", data_on_click=CounterState.reset()),
+            data_signals=json.dumps(counter.model_dump())
+        )
     )
 ```
 
 The magic happens through:
 
-1. **Reactive State Classes**: Inherit from `ReactiveState` to get automatic state synchronization
-2. **Event Decorators**: Methods with `@event` become HTTP endpoints that return SSE streams
-3. **Datastar Integration**: UI elements use `data-*` attributes for binding and event handling
-4. **Automatic Updates**: State changes trigger SSE events that update bound UI elements instantly
+1. **Reactive State Classes**: Inherit from `State` to get automatic state synchronization
+2. **Simple State Access**: Use `MyState.get(req)` to access scoped state instances
+3. **Event Decorators**: Methods with `@event` become HTTP endpoints that return SSE streams
+4. **Datastar Integration**: UI elements use `data-*` attributes for binding and event handling
+5. **Automatic Updates**: State changes trigger SSE events that update bound UI elements instantly
 
 ## Architecture
 
@@ -89,11 +94,13 @@ uv sync
 python app/main.py
 ```
 
-Visit `http://localhost:5000` to see the interactive demo showcasing:
+Visit `http://localhost:5001` to see the interactive demo showcasing:
+- Simple `.get()` state access pattern
 - Counter with increment/decrement
 - Real-time streaming updates
-- Two-way data binding
+- Two-way data binding  
 - State persistence across sessions
+- Multiple state scopes (session, global, user, record)
 
 ## Technology Stack
 

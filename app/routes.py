@@ -10,11 +10,11 @@ from fasthtml.common import *
 from fasthtml.core import APIRouter
 from monsterui.franken import *
 from sqlmodel import Field
-from faststate.state import event, ReactiveState, _get_state
+from faststate.state import event, State, _get_state
 rt = APIRouter()
 
 
-class MyState(ReactiveState):
+class MyState(State):
     myInt: int = Field(default=0, title="My Integer", description="An integer value that can be incremented/decremented")
     myStr: str = "Hello"
     tick_count: int = 0

@@ -14,10 +14,10 @@ from faststate.auth import (
     set_current_auth, set_user_permissions, set_user_roles, set_user_id,
     clear_auth_context, has_permission, has_role, is_authenticated
 )
-from faststate.state import ReactiveState
+from faststate.state import State
 
 
-class TestState(ReactiveState):
+class TestState(State):
     name: str = "test"
     user_id: str = ""
     

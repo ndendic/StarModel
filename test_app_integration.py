@@ -18,7 +18,7 @@ def test_app_imports():
     try:
         # Test core FastState imports
         from faststate import (
-            ReactiveState, event, StateScope, StateConfig, state_registry,
+            State, event, StateScope, StateConfig, state_registry,
             initialize_faststate, requires_auth
         )
         print("✓ FastState imports successful")
@@ -48,9 +48,9 @@ def test_state_definitions():
     # We need to import from main.py but can't run it directly
     # So we'll define simplified versions for testing
     
-    from faststate import ReactiveState, event, requires_auth
+    from faststate import State, event, requires_auth
     
-    class TestMyState(ReactiveState):
+    class TestMyState(State):
         myInt: int = 0
         myStr: str = "Hello"
         
@@ -58,7 +58,7 @@ def test_state_definitions():
         def increment(self, amount: int):
             self.myInt += amount
     
-    class TestUserState(ReactiveState):
+    class TestUserState(State):
         name: str = ""
         
         @event
@@ -83,9 +83,9 @@ def test_state_registration():
     """Test state registration process."""
     print("\nTesting state registration...")
     
-    from faststate import StateScope, StateConfig, state_registry, ReactiveState
+    from faststate import StateScope, StateConfig, state_registry, State
     
-    class TestState(ReactiveState):
+    class TestState(State):
         test_field: str = "test"
     
     # Clear any existing registrations
@@ -107,12 +107,12 @@ def test_route_signature_simulation():
     """Test that route signatures would work with state injection."""
     print("\nTesting route signature simulation...")
     
-    from faststate import ReactiveState, StateScope, StateConfig, state_registry
+    from faststate import State, StateScope, StateConfig, state_registry
     from fasthtml.common import Request
     from unittest.mock import Mock
     import inspect
     
-    class TestState(ReactiveState):
+    class TestState(State):
         value: int = 0
     
     # Register state

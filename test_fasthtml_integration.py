@@ -12,12 +12,12 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from faststate.registry import StateScope, StateConfig, state_registry
-from faststate.state import ReactiveState
+from faststate.state import State
 from faststate.fasthtml_integration import initialize_faststate, get_state_info, register_auth_provider
 from faststate.auth import requires_auth
 
 
-class TestState(ReactiveState):
+class TestState(State):
     name: str = "test"
     count: int = 0
     
@@ -27,7 +27,7 @@ class TestState(ReactiveState):
         return f"Count: {self.count}"
 
 
-class AdminState(ReactiveState):
+class AdminState(State):
     admin_data: str = "secret"
     
     @requires_auth(permissions=['admin'])
