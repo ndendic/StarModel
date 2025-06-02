@@ -74,6 +74,49 @@ class FastStateRegistry:
         
         return annotation in self._state_configs
     
+    def resolve_state_sync(self, state_cls: Type, req: Request, sess: dict, auth: Optional[str] = None) -> 'ReactiveState':
+        """
+        Resolve state instance based on registered configuration (synchronous version).
+        
+        Args:
+            state_cls: The state class to resolve
+            req: FastHTML request object
+            sess: Session dictionary
+            auth: Authentication string (optional, for USER scope)
+            
+        Returns:
+            State instance for the given scope and context
+            
+        Raises:
+            ValueError: If required parameters are missing
+        """
+        config = self._state_configs[state_cls]
+        
+        # Generate state key
+        state_key = self._generate_state_key(state_cls, config, req, sess, auth)
+        
+        # Return cached instance if available
+        if state_key in self._state_instances:
+            return self._state_instances[state_key]
+        
+        # Try to load from persistence if enabled (synchronous version)
+        state = None
+        if config.auto_persist and config.persistence_backend:
+            state = self._load_from_persistence_sync(state_cls, state_key, config)
+        
+        # Create new instance if not found in persistence
+        if state is None:
+            state = self._create_state_instance(state_cls, config, req, sess, auth)
+        
+        # Cache the instance
+        self._state_instances[state_key] = state
+        
+        # Save to persistence if auto_persist is enabled and this is a new instance
+        if config.auto_persist and config.persistence_backend:
+            self._save_to_persistence_sync(state, state_key, config)
+            
+        return state
+    
     async def resolve_state(self, state_cls: Type, req: Request, sess: dict, auth: Optional[str] = None) -> 'ReactiveState':
         """
         Resolve state instance based on registered configuration.
@@ -202,6 +245,68 @@ class FastStateRegistry:
         
         # Create new instance
         return state_cls()
+    
+    def _load_from_persistence_sync(self, state_cls: Type, state_key: str, config: StateConfig) -> Optional['ReactiveState']:
+        """
+        Load state from persistence layer (synchronous version).
+        
+        Args:
+            state_cls: State class type
+            state_key: State key to load
+            config: State configuration
+            
+        Returns:
+            Loaded state instance or None
+        """
+        try:
+            from .persistence import persistence_manager
+            
+            backend_name = config.persistence_backend or "default"
+            # Use synchronous persistence method
+            state_data = persistence_manager.load_state_sync(state_key, backend_name)
+            
+            if state_data:
+                # Create instance and populate with loaded data
+                state = state_cls()
+                for field_name, value in state_data.items():
+                    if hasattr(state, field_name):
+                        setattr(state, field_name, value)
+                return state
+                
+        except (ImportError, AttributeError):
+            pass
+        
+        return None
+
+    def _save_to_persistence_sync(self, state: 'ReactiveState', state_key: str, config: StateConfig) -> bool:
+        """
+        Save state to persistence layer (synchronous version).
+        
+        Args:
+            state: State instance to save
+            state_key: State key for storage
+            config: State configuration
+            
+        Returns:
+            True if save was successful, False otherwise
+        """
+        try:
+            from .persistence import persistence_manager
+            
+            backend_name = config.persistence_backend or "default"
+            state_data = state.model_dump()
+            
+            return persistence_manager.save_state_sync(
+                state_key, 
+                state_data, 
+                ttl=config.ttl,
+                backend=backend_name
+            )
+            
+        except (ImportError, AttributeError):
+            pass
+        
+        return False
     
     async def _load_from_persistence(self, state_cls: Type, state_key: str, config: StateConfig) -> Optional['ReactiveState']:
         """

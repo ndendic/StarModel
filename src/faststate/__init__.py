@@ -7,9 +7,9 @@ to provide automatic state management with scoping and real-time updates.
 
 from .state import ReactiveState, event, _get_state
 from .registry import StateScope, StateConfig, FastStateRegistry, state_registry
-from .fasthtml_integration import (
-    initialize_faststate, create_state_middleware, get_state_info
-)
+# from .fasthtml_integration import (
+#     initialize_faststate, create_state_middleware, get_state_info
+# )
 from .sse_manager import StateSSEManager, SSEConnection, sse_manager
 from .persistence import (
     StatePersistenceBackend, RedisStatePersistence, DatabaseStatePersistence, 
@@ -29,9 +29,9 @@ __all__ = [
     'state_registry',
     
     # FastHTML integration
-    'initialize_faststate',
-    'create_state_middleware',
-    'get_state_info',
+    # 'initialize_faststate',
+    # 'create_state_middleware',
+    # 'get_state_info',
     
     # SSE management
     'StateSSEManager',

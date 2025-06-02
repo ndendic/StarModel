@@ -10,9 +10,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Install dev dependencies**: `uv sync --group dev`
 - **Run tests**: `python test_<test_name>.py` (tests are standalone scripts)
 - **Run all tests**: Execute individual test files directly (no unified test runner configured)
-- **Run SSE tests**: `python test_sse_manager.py`
-- **Run persistence tests**: `python test_persistence.py`
-- **Run integration tests**: `python test_integration.py`
+- **Run specific tests**:
+  - SSE tests: `python test_sse_manager.py`
+  - Persistence tests: `python test_persistence.py`
+  - Integration tests: `python test_integration.py`
+  - Registry tests: `python test_registry.py`
+  - FastHTML integration tests: `python test_fasthtml_integration.py`
+  - Auth tests: `python test_auth.py`
+  - App integration tests: `python test_app_integration.py`
 
 ## Project Architecture
 
@@ -161,6 +166,10 @@ state_registry.register(
 - **test_sse_manager.py**: Tests SSE connection management and broadcasting
 - **test_persistence.py**: Tests all persistence backends and TTL functionality
 - **test_integration.py**: End-to-end integration tests covering the complete workflow
+- **test_registry.py**: Tests state registry functionality and scoping
+- **test_fasthtml_integration.py**: Tests FastHTML integration and middleware
+- **test_auth.py**: Tests authentication and session handling
+- **test_app_integration.py**: Tests demo application integration
 - Manual verification required as tests don't use assertion frameworks
 
 ### Demo Application Features
@@ -174,3 +183,11 @@ The demo app (`app/main.py`) showcases all FastState capabilities:
 - **Chat (`/chat`)**: Real-time collaborative chat with global state and SSE
 - **Counter (`/counter`)**: Global counter with persistence and multi-user sync
 - **Status (`/status`)**: System monitoring dashboard with live statistics
+
+## Important Development Notes
+
+- **Database File**: Demo app uses SQLite database (`app/faststate_demo.db`) for persistence testing
+- **Authentication**: Handled via FastHTML beforeware middleware system
+- **Route Integration**: Legacy routes in `app/routes.py` are merged with auto-generated state routes
+- **State Middleware**: Uses `create_state_middleware()` for dependency injection into FastHTML routes
+- **Backward Compatibility**: Existing FastHTML patterns work alongside FastState enhancements

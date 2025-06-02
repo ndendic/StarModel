@@ -10,7 +10,7 @@ from fasthtml.common import *
 from fasthtml.core import APIRouter
 from monsterui.franken import *
 from sqlmodel import Field
-from faststate.state import event, ReactiveState, _STATE_REGISTRY, _get_state
+from faststate.state import event, ReactiveState, _get_state
 rt = APIRouter()
 
 
@@ -106,7 +106,7 @@ def index(request):
             ),
 
             H2("State Registry", cls="mt-4"),
-            *[Div(f"{v} : {type(v)}") for k, v in _STATE_REGISTRY.items()],
+            # *[Div(f"{v} : {type(v)}") for k, v in _STATE_REGISTRY.items()],
 
             
             Button("Emoji", data_on_click=MyState.emoji_generator()),

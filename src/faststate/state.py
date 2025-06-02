@@ -44,7 +44,40 @@ class ReactiveState(SQLModel):
                 )
                 setattr(cls, name, url_generator_static_method)
 
-_STATE_REGISTRY: dict[str, ReactiveState] = {}
+    @classmethod
+    def get(cls, req: Request, sess: dict = None, auth: str = None) -> 'ReactiveState':
+        """
+        Get state instance for this state class from the request context.
+        
+        Args:
+            req: FastHTML request object
+            sess: Session dictionary (auto-extracted if not provided)
+            auth: Authentication string (auto-extracted if not provided)
+            
+        Returns:
+            State instance for the given scope and context
+            
+        Example:
+            my_state = MyState.get(req)
+            user_profile = UserProfileState.get(req, sess, auth)
+        """
+        # Auto-extract session and auth if not provided
+        if sess is None:
+            sess = getattr(req, 'session', {})
+        if auth is None:
+            auth = req.scope.get("user") or sess.get("auth")
+        
+        # Use state registry resolution logic
+        try:
+            from .registry import state_registry
+            if state_registry.is_state_type(cls):
+                return state_registry.resolve_state_sync(cls, req, sess, auth)
+        except (ImportError, AttributeError):
+            pass
+        
+        # Fallback: create new instance (for backward compatibility)
+        return cls()
+
 
 async def _get_state(request: Request, cls: type[ReactiveState], id: str | None = None) -> ReactiveState:
     """
@@ -291,7 +324,7 @@ async def create_sse_connection_handler(request: Request):
         # Extract connection parameters
         query_params = request.query_params
         session = getattr(request, 'session', {})
-        auth = getattr(request, 'auth', None)
+        auth = request.get('auth', None)
         
         session_id = request.cookies.get('session_')[:100] or str(uuid.uuid4())
         user_id = auth if isinstance(auth, str) else None

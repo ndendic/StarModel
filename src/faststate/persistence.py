@@ -514,6 +514,45 @@ class StatePersistenceManager:
         persistence_backend = self.get_backend(backend)
         return await persistence_backend.cleanup_expired()
 
+    # Synchronous methods for dependency injection compatibility
+    def save_state_sync(
+        self,
+        key: str,
+        state_data: Dict[str, Any],
+        ttl: Optional[int] = None,
+        backend: str = "default"
+    ) -> bool:
+        """Save state using specified backend (synchronous version)."""
+        try:
+            import asyncio
+            persistence_backend = self.get_backend(backend)
+            # Run async method in a new event loop
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return loop.run_until_complete(persistence_backend.save_state(key, state_data, ttl))
+            finally:
+                loop.close()
+        except Exception as e:
+            print(f"Error in sync save_state: {e}")
+            return False
+    
+    def load_state_sync(self, key: str, backend: str = "default") -> Optional[Dict[str, Any]]:
+        """Load state using specified backend (synchronous version)."""
+        try:
+            import asyncio
+            persistence_backend = self.get_backend(backend)
+            # Run async method in a new event loop
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                return loop.run_until_complete(persistence_backend.load_state(key))
+            finally:
+                loop.close()
+        except Exception as e:
+            print(f"Error in sync load_state: {e}")
+            return None
+
 
 # Global persistence manager instance
 persistence_manager = StatePersistenceManager()

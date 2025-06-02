@@ -12,18 +12,13 @@ from monsterui.all import *
 
 # Import FastState components
 from faststate import (
-    ReactiveState, event, StateScope, StateConfig, state_registry,
-    initialize_faststate, sse_manager, persistence_manager,
+    ReactiveState, event, StateScope, StateConfig, state_registry, sse_manager, persistence_manager,
     MemoryStatePersistence, DatabaseStatePersistence
 )
 
 # Import existing routes and state routes for backward compatibility
 from routes import rt as old_routes
 from faststate.state import rt as state_rt
-
-# Initialize FastState integration with FastHTML
-print("🚀 Initializing FastState...")
-initialize_faststate()
 
 # Set up enhanced persistence backends
 print("💾 Setting up persistence backends...")
@@ -343,14 +338,16 @@ app, rt = fast_app(
 # =============================================================================
 
 @rt('/')
-def index(req: Request, sess: dict, my_state: MyState, auth: str = None):
+def index(req: Request, sess: dict, auth: str = None):
     """
-    Main page demonstrating session-scoped state with automatic injection.
-    No more manual _get_state() calls needed!
+    Main page demonstrating session-scoped state with simple .get() method.
+    Clean and explicit state resolution!
     """
     if not auth:
         auth = sess.get('auth', None)
-    # State automatically injected by FastHTML integration
+    
+    # Simple, explicit state resolution
+    my_state = MyState.get(req, sess, auth)
     return Titled("FastState Demo - Enhanced with DI",
         Main(
             # Welcome message
@@ -422,12 +419,13 @@ def index(req: Request, sess: dict, my_state: MyState, auth: str = None):
 
 
 @rt('/profile')
-def profile(req: Request, sess: dict, profile: UserProfileState, auth: str = None):
+def profile(req: Request, sess: dict, auth: str = None):
     """
     User profile page with user-scoped state.
-    Automatically handles authentication requirements.
+    Uses simple .get() method for state resolution.
     """
-    # State automatically injected by FastHTML integration
+    # Simple, explicit state resolution
+    profile = UserProfileState.get(req, sess, auth)
     
     return Titled("User Profile",
         Main(
@@ -483,12 +481,13 @@ def profile(req: Request, sess: dict, profile: UserProfileState, auth: str = Non
 
 
 @rt('/admin')
-def admin_panel(req: Request, sess: dict, settings: GlobalSettingsState, auth: str = None):
+def admin_panel(req: Request, sess: dict, auth: str = None):
     """
     Admin panel with global state.
-    Automatically enforces admin permissions via state registry.
+    Uses simple .get() method for state resolution.
     """
-    # State automatically injected by FastHTML integration
+    # Simple, explicit state resolution
+    settings = GlobalSettingsState.get(req, sess, auth)
     return Titled("Admin Panel",
         Main(
             Div(
@@ -552,13 +551,14 @@ def admin_panel(req: Request, sess: dict, settings: GlobalSettingsState, auth: s
 
 
 @rt('/product/{record_id}')
-def product_detail(req: Request, sess: dict, product: ProductState, record_id: int, auth: str = None):
+def product_detail(req: Request, sess: dict, record_id: int, auth: str = None):
     """
     Product detail page with record-scoped state.
     Demonstrates state tied to specific database records.
     """
     # State automatically injected by FastHTML integration
-    
+    product = ProductState.get(req, sess, auth)
+
     # Initialize product data if empty (simulating database load)
     if not product.name:
         product.name = f"Sample Product {record_id}"
@@ -621,10 +621,11 @@ def product_detail(req: Request, sess: dict, product: ProductState, record_id: i
 
 
 @rt('/chat')
-def realtime_chat(req: Request, sess: dict, chat: ChatState, auth: str = None):
+def realtime_chat(req: Request, sess: dict, auth: str = None):
     """
     Real-time chat demo showcasing global state and SSE broadcasting.
     """
+    chat = ChatState.get(req, sess, auth)
     username = auth or sess.get('auth', 'Anonymous')
     
     return Titled("Real-time Chat",
@@ -720,10 +721,11 @@ def realtime_chat(req: Request, sess: dict, chat: ChatState, auth: str = None):
 
 
 @rt('/counter')
-def global_counter(req: Request, sess: dict, counter: CounterState, auth: str = None):
+def global_counter(req: Request, sess: dict, auth: str = None):
     """
     Global counter demo with persistence and real-time synchronization.
     """
+    counter = CounterState.get(req, sess, auth)
     username = auth or sess.get('auth', 'Anonymous')
     
     return Titled("Global Counter",
@@ -1019,22 +1021,6 @@ state_rt.to_app(app)
 if __name__ == "__main__":
     print("\n" + "="*60)
     print("🎉 FastState Demo Application Starting!")
-    print("="*60)
-    print("🚀 Enhanced Features Enabled:")
-    print("✅ Automatic state dependency injection")
-    print("✅ Session, User, Global, and Record-scoped states")
-    print("✅ Real-time SSE connection management & broadcasting")
-    print("✅ Multi-backend persistence (Database + Memory)")
-    print("✅ FastHTML beforeware for authentication")
-    print("✅ Performance monitoring and system status")
-    print("✅ Real-time chat and global counter demos")
-    print("✅ Production-ready architecture")
-    print("")
-    print("🌟 New Demo Pages:")
-    print("  💬 /chat - Real-time chat with SSE broadcasting")
-    print("  🔢 /counter - Global counter with persistence")
-    print("  📊 /status - System monitoring dashboard")
-    print("\nVisit http://localhost:5000 to explore all features!")
     print("="*60)
     
     serve(reload=True)
