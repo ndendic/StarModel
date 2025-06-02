@@ -198,21 +198,21 @@ class CounterState(State):
         self.count += amount
         self.last_updated_by = user
         self.update_count += 1
-        return Div(f"Counter incremented by {amount} by {user}", cls="text-green-600")
+        return Div(f"Counter incremented by {amount} by {user}",id="message", cls="font-mono text-sm text-green-600")
     
     @event  
     def decrement(self, amount: int = 1, user: str = "Anonymous"):
         self.count -= amount
         self.last_updated_by = user
         self.update_count += 1
-        return Div(f"Counter decremented by {amount} by {user}", cls="text-red-600")
+        return Div(f"Counter decremented by {amount} by {user}",id="message", cls="font-mono text-sm text-red-600")
     
     @event
     def reset(self, user: str = "Anonymous"):
         self.count = 0
         self.last_updated_by = user
         self.update_count += 1
-        return Div(f"Counter reset by {user}", cls="text-blue-600")
+        return Div(f"Counter reset by {user}",id="message", cls="font-mono text-sm text-blue-600")
     
     @event(selector="#counter-state")
     def push(self):
@@ -741,16 +741,6 @@ def global_counter(req: Request, sess: dict, auth: str = None):
                 P("This counter is shared globally across all users and persisted to database.", 
                   cls="text-gray-600 mb-6"),
                 
-                # SSE Connection for real-time updates
-                Script("""
-                    const eventSource = new EventSource('/faststate/sse?states=CounterState');
-                    eventSource.onmessage = function(event) {
-                        console.log('Counter SSE update:', event.data);
-                    };
-                """),
-                
-                # Counter state display
-                
                 # Counter display
                 Div(
                     H2("Current Count", cls="text-xl font-bold mb-4"),
@@ -763,6 +753,7 @@ def global_counter(req: Request, sess: dict, auth: str = None):
                         Div("Last updated by: ", Span(data_text="$last_updated_by"), cls="mb-2"),
                         Div("Total updates: ", Span(data_text="$update_count"), cls="mb-2"),
                         Div(f"Current user: {username}", cls="font-mono text-sm text-gray-600"),
+                        Div(id="message", cls="font-mono text-sm text-gray-600"),
                         cls="bg-gray-100 p-6 rounded mb-6 text-center"
                     ),
                     cls="mb-6"

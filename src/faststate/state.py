@@ -78,6 +78,12 @@ class State(SQLModel):
         # Fallback: create new instance (for backward compatibility)
         return cls()
 
+
+    def push(self, keep_alive: bool = False, delay: str = "1s", **kwargs):
+        return Div({"data-signals": json.dumps(self.model_dump()), f"data-on-load__delay.{delay}": self.push() if keep_alive else None}, 
+                   id=__class__.__name__,
+                   **kwargs)
+
 async def _get_state(request: Request, cls: type[State], id: str | None = None) -> State:
     """
     Get state instance for the given request. Uses state registry when available,
@@ -305,6 +311,7 @@ def event(
     else: # _func_or_pos_path is None (e.g., @event() or @event(method="post", path="kw/path"))
         effective_custom_path = path # Use keyword path if provided, else None
         return _configure_and_get_decorator(effective_custom_path) # Returns the _decorator
+
 
 # SSE Connection Management Functions
 # ========================================

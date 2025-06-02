@@ -24,7 +24,7 @@ __all__ = [
     
     # Registry system
     'StateScope',
-    'StateConfig', 
+    'StateConfig',
     'FastStateRegistry',
     'state_registry',
     
