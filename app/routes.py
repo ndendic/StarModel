@@ -10,7 +10,7 @@ from fasthtml.common import *
 from fasthtml.core import APIRouter
 from monsterui.franken import *
 from sqlmodel import Field
-from faststate.state import event, State, _get_state
+from faststate.state import event, State
 rt = APIRouter()
 
 
@@ -36,13 +36,13 @@ class MyState(State):
     def set_myStr(self, myStr: str):
         self.myStr = myStr
         
-    @event(selector="#ticker-box", merge_mode="inner")
+    @event(selector="#ticker-box")
     def start_ticking(self):
         self.tick_count += 1
         # return Div(f"Tick #{self.tick_count} - ",Span(data_text="$myInt"))
         return H4("Tick actual#",Span(data_text="$tick_count"), cls="text-red-500")
 
-    @event(selector="#ticker-box", merge_mode="inner")
+    @event(selector="#ticker-box")
     async def start_streaming_ticks(self):
         """Generator that yields fragments over time"""
         async def tick_generator():
@@ -52,7 +52,7 @@ class MyState(State):
                 await asyncio.sleep(0.5)
         return tick_generator()
 
-    @event(selector="#emoji-container", merge_mode="inner")
+    @event(selector="#emoji-container")
     async def emoji_generator(self):
         """Generator that yields fragments over time"""
         async def generator():
@@ -80,7 +80,7 @@ class MyState(State):
 
 @rt('/playground')
 def index(request):
-    state = _get_state(request, MyState)
+    state = MyState.get(request)
     """Playground page for testing components."""
     return Titled("FastState Demo",
         Main(
