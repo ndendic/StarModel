@@ -1,28 +1,17 @@
-import asyncio
 import inspect
 import json
-import urllib.parse
 import uuid
-import typing
+import urllib.parse
 
 from datastar_py import SSE_HEADERS
 from datastar_py import ServerSentEventGenerator as SSE
 from fasthtml.common import *
 from fasthtml.core import APIRouter, StreamingResponse
-from monsterui.franken import *
-from sqlmodel import Field, SQLModel
-
+from pydantic import BaseModel, Field
 rt = APIRouter()
 
-class State(SQLModel):
-    # id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+class State(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
-
-    # utility: send just-changed fields over SSE --------------------------- #
-    def _diff_and_events(self, before: dict, after: dict):
-        changed = {k: v for k, v in after.items() if before.get(k) != v}
-        if changed:
-            yield SSE.merge_signals(changed)
     
     def __ft__(self):
         return Div(
@@ -32,40 +21,22 @@ class State(SQLModel):
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        for name, member in inspect.getmembers(cls):
-            if hasattr(member, '_faststate_event_config'):
-                event_config = member._faststate_event_config
-                original_method = member
-                
-                url_generator_static_method = _build_event_handler_and_url_generator(
-                    cls,
-                    original_method,
-                    event_config
-                )
-                setattr(cls, name, url_generator_static_method)
+        # Register event-decorated methods as routes and add URL generators
+        for name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
+            if hasattr(method, '_event_config'):
+                # Register the route
+                _register_event_route(cls, method, method._event_config)
+                # Add URL generator static method
+                _add_url_generator(cls, name, method, method._event_config)
 
     @classmethod
     def get(cls, req: Request, sess: dict = None, auth: str = None) -> 'State':
-        """
-        Get state instance for this state class from the request context.
-        
-        Args:
-            req: FastHTML request object
-            sess: Session dictionary (auto-extracted if not provided)
-            auth: Authentication string (auto-extracted if not provided)
-            
-        Returns:
-            State instance for the given scope and context
-            
-        Example:
-            my_state = MyState.get(req)
-            user_profile = UserProfileState.get(req, sess, auth)
-        """
+        """Get state instance for this state class from the request context."""
         # Auto-extract session and auth if not provided
         if sess is None:
-            sess = getattr(req, 'session', {})
+            sess = req.get('session', None)
         if auth is None:
-            auth = req.scope.get("user") or sess.get("auth")
+            auth = req.get("auth", None) or sess.get("user", None)
         
         # Use state registry resolution logic
         try:
@@ -79,84 +50,22 @@ class State(SQLModel):
         return cls()
 
 
-    def push(self, keep_alive: bool = False, delay: str = "1s", **kwargs):
-        return Div({"data-signals": json.dumps(self.model_dump()), f"data-on-load__delay.{delay}": self.push() if keep_alive else None}, 
-                   id=__class__.__name__,
-                   **kwargs)
-
-async def _get_state(request: Request, cls: type[State], id: str | None = None) -> State:
-    """
-    Get state instance for the given request. Uses state registry when available,
-    falls back to legacy behavior for backward compatibility.
-    """
-    # Try to use the state registry first if available
-    try:
-        from .registry import state_registry
-        if state_registry.is_state_type(cls):
-            # Extract session and auth from request for registry
-            session = getattr(request, 'session', {})
-            auth = session.get('auth', None)
-            # auth = getattr(request, 'auth', None)  # May be set by beforeware
-            return await state_registry.resolve_state(cls, request, session, auth)
-    except (ImportError, AttributeError, KeyError):
-        pass
-
-VERBS = {"get", "post", "put", "patch", "delete"}
-
-# ------------------------------------------------------------------ #
-def _build_event_handler_and_url_generator(state_class: type['State'], original_func, event_config: dict):
-    # Resolve the route path: custom or default
-    custom_path_from_config = event_config.get('custom_route_path')
-    final_route_path: str
-
-    if custom_path_from_config:
-        final_route_path = custom_path_from_config
-        if not final_route_path.startswith("/"):
-            final_route_path = "/" + final_route_path
-    else:
-        final_route_path = "/" + original_func.__qualname__.replace(".", "/") # Default behavior
-
-    method = event_config['method']
-    selector = event_config['selector']
-    merge_mode = event_config['merge_mode']
-
-    class ParameterConversionError(ValueError):
-        pass
-
-    def _convert_single_param(raw_val, type_hint, p_name: str):
-        expected_type_to_convert_to = None
-        if type_hint is int: expected_type_to_convert_to = int
-        elif type_hint is float: expected_type_to_convert_to = float
-        elif type_hint is bool: expected_type_to_convert_to = bool
-
-        if expected_type_to_convert_to:
-            if isinstance(raw_val, str): # Value from query string, needs conversion
-                if expected_type_to_convert_to is bool:
-                    if raw_val.lower() in ('true', '1', 'yes', 'on'): return True
-                    elif raw_val.lower() in ('false', '0', 'no', 'off'): return False
-                    else: raise ParameterConversionError(f"Invalid boolean value for parameter '{p_name}': {raw_val}")
-                else: # int or float from string
-                    try: return expected_type_to_convert_to(raw_val)
-                    except ValueError: raise ParameterConversionError(f"Invalid value for parameter '{p_name}': '{raw_val}'. Expected {expected_type_to_convert_to.__name__}.")
-            elif isinstance(raw_val, expected_type_to_convert_to): # Value from JSON, already correct type
-                return raw_val
-            elif expected_type_to_convert_to is float and isinstance(raw_val, int): # Allow int for float (e.g. from JSON)
-                return float(raw_val)
-            else: # Mismatch between actual type (e.g. from JSON) and annotation
-                raise ParameterConversionError(f"Incorrect type for parameter '{p_name}'. Expected {expected_type_to_convert_to.__name__}, got {type(raw_val).__name__}.")
-        elif type_hint is str: # Explicitly string type hint
-            return str(raw_val)
-        else:
-            if isinstance(raw_val, (str, int, float, bool)) or raw_val is None:
-                return raw_val 
-            return str(raw_val)
-
-    async def _handler(request):
-        state = await _get_state(request, state_class)
-        before = state.model_dump()
-
-        sig = inspect.signature(original_func)
-        bound = {}
+def _register_event_route(state_cls, method, config):
+    """Register an event method as a FastHTML route using APIRouter pattern."""
+    # Generate route path
+    path = config.get('path') or f"/{state_cls.__name__}/{method.__name__}"
+    methods = [config.get('method', 'get').upper()]
+    selector = config.get('selector')
+    merge_mode = config.get('merge_mode', 'morph')
+    
+    # Create the route handler
+    async def event_handler(request: Request):
+        # Get state instance
+        state = state_cls.get(request)
+        
+        # Extract parameters from request
+        params = {}
+        sig = inspect.signature(method)
         datastar_payload = None
         datastar_json_str = request.query_params.get('datastar')
         if datastar_json_str:
@@ -165,204 +74,115 @@ def _build_event_handler_and_url_generator(state_class: type['State'], original_
             except json.JSONDecodeError:
                 datastar_payload = None
                 print(f"Warning: 'datastar' query parameter contained invalid JSON: {datastar_json_str}")
-
-        for name, param in list(sig.parameters.items())[1:]:
-            raw_value = request.query_params.get(name)
-
-            if raw_value is None and datastar_payload and name in datastar_payload:
-                raw_value = datastar_payload[name]
-            
-            if raw_value is not None:
-                try:
-                    actual_type_hint = typing.get_origin(param.annotation) or param.annotation
-                    bound[name] = _convert_single_param(raw_value, actual_type_hint, name)
-                except ParameterConversionError as e:
-                    return P(str(e), cls="text-red-500 mt-4") # User wants P components for errors
-            elif param.default is inspect.Parameter.empty: # raw_value is None, and no default value
-                return P(f"Missing required parameter: '{name}'", cls="text-red-500 mt-4")
-            else: # raw_value is None, but there is a default value
-                bound[name] = param.default
-
-        out = await original_func(state, **bound) if asyncio.iscoroutinefunction(original_func) else original_func(state, **bound)
-        after = state.model_dump()
         
-        # Broadcast state changes via SSE manager if available and state has changed
-        state_changes = {k: v for k, v in after.items() if before.get(k) != v}
-        if state_changes:
-            try:
-                from .registry import state_registry
-                from .sse_manager import sse_manager
-                from .registry import StateScope
+        for param_name, param in list(sig.parameters.items())[1:]:  # Skip 'self'
+            # Try query params first, then JSON body
+            value = request.query_params.get(param_name)
+            if value is None and datastar_payload and param_name in datastar_payload:
+                value = datastar_payload[param_name]                
+            
+            if value is not None:
+                # Simple type conversion
+                if param.annotation == int:
+                    value = int(value)
+                elif param.annotation == float:
+                    value = float(value)
+                elif param.annotation == bool:
+                    value = value.lower() in ('true', '1', 'yes', 'on')
                 
-                # Get state configuration if registered
-                if state_registry.is_state_type(state_class):
-                    config = state_registry._state_configs.get(state_class)
-                    if config:
-                        # Extract context for broadcasting
-                        session = getattr(request, 'session', {})
-                        auth = session.get('auth', None)
-                        # auth = getattr(request, 'auth', None)
-                        session_id = request.cookies.get('session_')[:100]
-                        user_id = auth if isinstance(auth, str) else None
-                        
-                        # Determine record_id for RECORD scope
-                        record_id = None
-                        if config.scope == StateScope.RECORD:
-                            record_id = getattr(state, 'id', None) or request.query_params.get('record_id')
-                        
-                        # Broadcast the changes
-                        sse_manager.broadcast_state_change(
-                            state_class_name=state_class.__name__,
-                            state_changes=state_changes,
-                            scope=config.scope,
-                            session_id=session_id,
-                            user_id=user_id,
-                            record_id=record_id
-                        )
-            except (ImportError, AttributeError) as e:
-                # SSE manager not available, continue without broadcasting
-                print(f"Warning: SSE broadcasting not available: {e}")
-                pass
-
-        async def stream_response_content():
-            for ev_data in state._diff_and_events(before, after):
-                yield ev_data
-            
-            if out is not None:
-                if hasattr(out, '__aiter__'): 
-                    async for fragment in out:
-                        yield SSE.merge_fragments([to_xml(fragment)], selector=selector, merge_mode=merge_mode)
-                else:
-                    fragments = []
-                    if hasattr(out, '__iter__') and not isinstance(out, (str, FT)):
-                        fragments = [to_xml(f) for f in out]
-                    else: 
-                        fragments = [to_xml(out)]
-                    if fragments:
+                params[param_name] = value
+            elif param.default is inspect.Parameter.empty:
+                raise ValueError(f"Missing required parameter: {param_name}")
+            else:
+                params[param_name] = param.default
+        
+        # Call the method
+        result = method(state, **params)
+        
+        # Handle async generators and regular returns
+        async def sse_stream():            
+            # Handle method result
+            yield SSE.merge_signals(state.model_dump())
+            if hasattr(result, '__aiter__'):  # Async generator
+                async for item in result:
+                    yield SSE.merge_signals(state.model_dump())
+                    if item and (hasattr(item, '__ft__') or isinstance(item, FT)):  # FT component
+                        fragments = [to_xml(item)]
+                        if selector:
+                            yield SSE.merge_fragments(fragments, selector=selector, merge_mode=merge_mode)
+                        else:
+                            yield SSE.merge_fragments(fragments, merge_mode=merge_mode)
+            else:  # Regular return or None
+                yield SSE.merge_signals(state.model_dump())
+                if result and (hasattr(result, '__ft__') or isinstance(result, FT)):  # FT component
+                    fragments = [to_xml(result)]
+                    if selector:
                         yield SSE.merge_fragments(fragments, selector=selector, merge_mode=merge_mode)
-
-        return StreamingResponse(stream_response_content(),
-                                 media_type="text/event-stream",
-                                 headers=SSE_HEADERS)
-
-    rt(final_route_path, methods=[method.upper()])(_handler)
-
-    param_names = event_config['original_params']
-    def _url_generator_for_method(*call_args, _method=method, **call_kwargs):
-        qs_dict = {k: v for k, v in zip(param_names, call_args)}
-        qs_dict.update(call_kwargs)
-        qs = urllib.parse.urlencode(qs_dict)
-        return f"@{_method}('{final_route_path}?{qs}')" if qs else f"@{_method}('{final_route_path}')"
-
-    return staticmethod(_url_generator_for_method)
-
-def event(
-    _func_or_pos_path: typing.Union[callable, str, None] = None,
-    *,
-    method: str = "get",
-    selector: str | None = None,
-    merge_mode: str = "morph",
-    path: str | None = None  # Explicit keyword for path
-):
-    def _configure_and_get_decorator(actual_custom_path_val: str | None):
-        def _decorator(func_to_decorate):
-            sig_params = list(inspect.signature(func_to_decorate).parameters.keys())
-            if not sig_params or sig_params[0] != 'self':
-                 raise TypeError(
-                     f"@event decorator expects '{func_to_decorate.__qualname__}' to be an instance method "
-                     f"with 'self' as its first parameter. Found parameters: {sig_params}"
-                )
-
-            method_lower = method.lower()
-            if method_lower not in VERBS:
-                raise ValueError(f"Unsupported HTTP verb: {method_lower!r}")
-
-            func_to_decorate._faststate_event_config = {
-                "method": method_lower,
-                "selector": selector,
-                "merge_mode": merge_mode,
-                "original_params": sig_params[1:],
-                "custom_route_path": actual_custom_path_val
-            }
-            return func_to_decorate
-        return _decorator
-
-    effective_custom_path: str | None = None
-
-    if isinstance(_func_or_pos_path, str):
-        # Called as @event("custom/path", ...)
-        if path is not None and path != _func_or_pos_path:
-            raise ValueError(
-                f"Path specified both positionally ('{_func_or_pos_path}') and as a keyword argument ('{path}'). Please use only one."
-            )
-        effective_custom_path = _func_or_pos_path
-        return _configure_and_get_decorator(effective_custom_path) # Returns the _decorator
+                    else:
+                        yield SSE.merge_fragments(fragments, merge_mode=merge_mode)
+        
+        return StreamingResponse(sse_stream(), media_type="text/event-stream", headers=SSE_HEADERS)
     
-    elif callable(_func_or_pos_path):        
-        if path is not None:
-             raise ValueError(
-                f"Cannot use keyword 'path' argument ('{path}') when @event is applied directly without parentheses "
-                f"and a positional path is not given. Did you mean @event(path='{path}')?"
-            )
-        # effective_custom_path remains None, path will be derived from func name by the builder
-        decorator_instance = _configure_and_get_decorator(None) 
-        return decorator_instance(_func_or_pos_path) # Apply decorator immediately
+    # Register with APIRouter following FastHTML pattern
+    rt(path, methods=methods)(event_handler)
+
+
+def _add_url_generator(state_cls, method_name, method, config):
+    """Add URL generator static method to the state class."""
+    # Generate route path (same logic as in _register_event_route)
+    path = config.get('path') or f"/{state_cls.__name__}/{method_name}"
+    http_method = config.get('method', 'get')
     
-    else: # _func_or_pos_path is None (e.g., @event() or @event(method="post", path="kw/path"))
-        effective_custom_path = path # Use keyword path if provided, else None
-        return _configure_and_get_decorator(effective_custom_path) # Returns the _decorator
+    # Get parameter names from method signature
+    sig = inspect.signature(method)
+    param_names = list(sig.parameters.keys())[1:]  # Skip 'self'
+    
+    def url_generator(*call_args, **call_kwargs):
+        # Build query parameters from args and kwargs
+        params = {}
+        
+        # Add positional arguments
+        for i, arg in enumerate(call_args):
+            if i < len(param_names):
+                params[param_names[i]] = arg
+        
+        # Add keyword arguments
+        params.update(call_kwargs)
+        
+        # Build query string
+        if params:
+            query_string = urllib.parse.urlencode(params)
+            return f"@{http_method}('{path}?{query_string}')"
+        else:
+            return f"@{http_method}('{path}')"
+    
+    # Set the URL generator as a static method on the class
+    setattr(state_cls, method_name, staticmethod(url_generator))
 
 
-# SSE Connection Management Functions
-# ========================================
-
-async def create_sse_connection_handler(request: Request):
+def event(path=None, *, method="get", selector=None, merge_mode="morph"):
     """
-    Create an SSE connection for real-time state updates.
+    Simplified event decorator for State methods.
     
-    This endpoint allows clients to establish persistent SSE connections
-    to receive broadcast state updates based on their subscriptions.
+    Args:
+        path: Custom route path (optional, defaults to /{ClassName}/{method_name})
+        method: HTTP method (default: "get")
+        selector: Datastar selector for fragment updates (optional)
+        merge_mode: Datastar merge mode (default: "morph")
     """
-    try:
-        from .sse_manager import sse_manager
-        
-        # Extract connection parameters
-        query_params = request.query_params
-        session = getattr(request, 'session', {})
-        auth = request.get('auth', None)
-        
-        session_id = request.cookies.get('session_')[:100] or str(uuid.uuid4())
-        user_id = auth if isinstance(auth, str) else None
-        subscribed_states = query_params.get('states', '').split(',') if query_params.get('states') else []
-        
-        # Clean up state names
-        subscribed_states = [s.strip() for s in subscribed_states if s.strip()]
-        
-        # Create SSE connection
-        connection = sse_manager.create_connection(
-            session_id=session_id,
-            user_id=user_id,
-            subscribed_states=subscribed_states
-        )
-        
-        # Return SSE stream
-        return StreamingResponse(
-            sse_manager.get_sse_stream(connection.connection_id),
-            media_type="text/event-stream",
-            headers=SSE_HEADERS
-        )
-        
-    except ImportError:
-        # SSE manager not available, return empty stream
-        async def empty_stream():
-            yield SSE.create_event(data={"error": "SSE manager not available"})
-        
-        return StreamingResponse(
-            empty_stream(),
-            media_type="text/event-stream",
-            headers=SSE_HEADERS
-        )
-
-
-# Register the SSE connection endpoint
-rt("/faststate/sse", methods=["GET"])(create_sse_connection_handler)
+    def decorator(func):
+        # Store config on the function
+        func._event_config = {
+            'path': path,
+            'method': method,
+            'selector': selector,
+            'merge_mode': merge_mode
+        }
+        return func
+    
+    if callable(path):  # Used as @event without parentheses
+        func = path
+        func._event_config = {'path': None, 'method': 'get', 'selector': None, 'merge_mode': 'morph'}
+        return func
+    
+    return decorator

@@ -7,12 +7,13 @@ Authentication is handled via FastHTML beforeware.
 """
 
 import json
+import asyncio
 from fasthtml.common import *
 from monsterui.all import *
 
 # Import FastState components
 from faststate import (
-    State, event, StateScope, StateConfig, state_registry, sse_manager, persistence_manager,
+    State, event, StateScope, StateConfig, state_registry, persistence_manager,
     MemoryStatePersistence, DatabaseStatePersistence
 )
 
@@ -58,7 +59,7 @@ class MyState(State):
         self.myInt = 0
 
     @event()
-    def set_myStr(self, myStr: str):
+    def set_myStr(self, myStr: str = myStr):
         self.myStr = myStr
         
     @event(selector="#ticker-box", merge_mode="inner")
@@ -147,7 +148,7 @@ class ChatState(State):
     active_users: int = 0
     last_message_id: int = 0
     
-    @event(selector="#chat-messages", merge_mode="beforeend")
+    @event(selector="#chat-messages")
     def send_message(self, username: str, message: str):
         if not message.strip():
             return Div("Message cannot be empty", cls="text-red-500")
@@ -194,25 +195,33 @@ class CounterState(State):
     update_count: int = 0
     
     @event
-    def increment(self, amount: int = 1, user: str = "Anonymous"):
-        self.count += amount
-        self.last_updated_by = user
+    async def increment(self, amount: int = 1, user: str = "Anonymous"):      
         self.update_count += 1
-        return Div(f"Counter incremented by {amount} by {user}",id="message", cls="font-mono text-sm text-green-600")
+        for i in range(amount):
+            self.count += 1
+            self.last_updated_by = user
+            await asyncio.sleep(i/1000)
+            yield Div(f"Counter incremented by {i+1} by {user}",id="message", cls="font-mono text-sm text-green-600")
     
     @event  
-    def decrement(self, amount: int = 1, user: str = "Anonymous"):
-        self.count -= amount
-        self.last_updated_by = user
+    async def decrement(self, amount: int = 1, user: str = "Anonymous"):
         self.update_count += 1
-        return Div(f"Counter decremented by {amount} by {user}",id="message", cls="font-mono text-sm text-red-600")
+        for i in range(amount):
+            self.count -= 1
+            self.last_updated_by = user
+            await asyncio.sleep(i/1000)
+            yield Div(f"Counter decremented by {i+1} by {user}",id="message", cls="font-mono text-sm text-red-600")
+        
     
     @event
-    def reset(self, user: str = "Anonymous"):
-        self.count = 0
-        self.last_updated_by = user
+    async def reset(self, user: str = "Anonymous"):
         self.update_count += 1
-        return Div(f"Counter reset by {user}",id="message", cls="font-mono text-sm text-blue-600")
+        for i in range(abs(self.count)):
+            if self.count > 0: self.count -= 1 
+            else: self.count += 1
+            self.last_updated_by = user
+            await asyncio.sleep(i/1000)
+            yield Div(f"Counter reset by {user}",id="message", cls="font-mono text-sm text-blue-600")
     
     @event(selector="#counter-state")
     def push(self):
@@ -787,7 +796,7 @@ def global_counter(req: Request, sess: dict, auth: str = None):
                 Div(
                     H3("Custom Increment", cls="text-lg font-bold mb-4"),
                     Form(
-                        Input(name="amount", placeholder="Amount", type="number", value="1",
+                        Input(name="amount", placeholder="Amount", type="number", value="1", data_bind="$amount",
                               cls="border rounded px-3 py-2 mr-2 w-24"),
                         Button("Add", type="submit", 
                                cls="bg-blue-500 text-white px-4 py-2 rounded mr-2"),
@@ -811,7 +820,6 @@ def system_status(req: Request, sess: dict, auth: str = None):
     System status page showing SSE connections, persistence stats, and more.
     """
     # Get SSE connection stats
-    sse_stats = sse_manager.get_connection_stats()
     
     # Get state registry stats
     cached_states = len(state_registry.get_cached_instances())
@@ -822,22 +830,7 @@ def system_status(req: Request, sess: dict, auth: str = None):
                 H1("📊 System Status", cls="text-3xl font-bold mb-6"),
                 P("Real-time system monitoring and statistics.", 
                   cls="text-gray-600 mb-6"),
-                
-                # SSE Connection Stats
-                Div(
-                    H2("SSE Connection Statistics", cls="text-xl font-bold mb-4"),
-                    Div(
-                        Div(f"Total Connections: {sse_stats['total_connections']}", cls="mb-2"),
-                        Div(f"Active Connections: {sse_stats['active_connections']}", cls="mb-2"),
-                        Div(f"Sessions with Connections: {sse_stats['connections_by_session']}", cls="mb-2"),
-                        Div(f"Users with Connections: {sse_stats['connections_by_user']}", cls="mb-2"),
-                        Div(f"Subscribed State Types: {sse_stats['subscribed_states']}", cls="mb-2"),
-                        Div(f"Record Subscriptions: {sse_stats['subscribed_records']}", cls="mb-2"),
-                        cls="bg-blue-50 p-4 rounded mb-6"
-                    ),
-                    cls="mb-6"
-                ),
-                
+                                                
                 # State Registry Stats
                 Div(
                     H2("State Registry Statistics", cls="text-xl font-bold mb-4"),
