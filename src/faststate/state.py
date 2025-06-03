@@ -1,4 +1,5 @@
 import inspect
+import asyncio
 import json
 import uuid
 import urllib.parse
@@ -10,46 +11,6 @@ from fasthtml.core import APIRouter, StreamingResponse
 from pydantic import BaseModel, Field
 rt = APIRouter()
 
-class State(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
-    
-    def __ft__(self):
-        return Div(
-            H2(f"State : {self.__class__.__name__} ({self.id})", cls="mt-4"),
-            *[Div(f"{k}: ",Span(data_text=f"${k}")) for k, v in self.model_dump().items()],
-            data_signals=json.dumps(self.model_dump()))
-
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        # Register event-decorated methods as routes and add URL generators
-        for name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
-            if hasattr(method, '_event_config'):
-                # Register the route
-                _register_event_route(cls, method, method._event_config)
-                # Add URL generator static method
-                _add_url_generator(cls, name, method, method._event_config)
-
-    @classmethod
-    def get(cls, req: Request, sess: dict = None, auth: str = None) -> 'State':
-        """Get state instance for this state class from the request context."""
-        # Auto-extract session and auth if not provided
-        if sess is None:
-            sess = req.get('session', None)
-        if auth is None:
-            auth = req.get("auth", None) or sess.get("user", None)
-        
-        # Use state registry resolution logic
-        try:
-            from .registry import state_registry
-            if state_registry.is_state_type(cls):
-                return state_registry.resolve_state_sync(cls, req, sess, auth)
-        except (ImportError, AttributeError):
-            pass
-        
-        # Fallback: create new instance (for backward compatibility)
-        return cls()
-
-
 def _register_event_route(state_cls, method, config):
     """Register an event method as a FastHTML route using APIRouter pattern."""
     # Generate route path
@@ -60,20 +21,21 @@ def _register_event_route(state_cls, method, config):
     
     # Create the route handler
     async def event_handler(request: Request):
-        # Get state instance
-        state = state_cls.get(request)
-        
+        # Get state instance        
+        state = state_cls.get(request)        
         # Extract parameters from request
         params = {}
         sig = inspect.signature(method)
         datastar_payload = None
-        datastar_json_str = request.query_params.get('datastar')
-        if datastar_json_str:
-            try:
+        
+        try:
+            datastar_json_str = request.query_params.get('datastar')
+            if datastar_json_str:
                 datastar_payload = json.loads(datastar_json_str)
-            except json.JSONDecodeError:
-                datastar_payload = None
-                print(f"Warning: 'datastar' query parameter contained invalid JSON: {datastar_json_str}")
+            else:
+                datastar_payload = await request.json()
+        except:
+            datastar_payload = None
         
         for param_name, param in list(sig.parameters.items())[1:]:  # Skip 'self'
             # Try query params first, then JSON body
@@ -186,3 +148,45 @@ def event(path=None, *, method="get", selector=None, merge_mode="morph"):
         return func
     
     return decorator
+
+class State(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    
+    def __ft__(self):
+        return Div({"data-signals": json.dumps(self.model_dump()), "data-on-load": self.live()}, id=f"{self.__class__.__name__}"),
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # Register event-decorated methods as routes and add URL generators
+        for name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
+            if hasattr(method, '_event_config'):
+                # Register the route
+                _register_event_route(cls, method, method._event_config)
+                # Add URL generator static method
+                _add_url_generator(cls, name, method, method._event_config)
+
+    @event
+    async def live(self, heartbeat: float = 1) -> 'State':
+        while True:
+            yield self.model_dump()
+            await asyncio.sleep(heartbeat)
+
+    @classmethod
+    def get(cls, req: Request, sess: dict = None, auth: str = None) -> 'State':
+        """Get state instance for this state class from the request context."""
+        # Auto-extract session and auth if not provided
+        if sess is None:
+            sess = req.get('session', None)
+        if auth is None:
+            auth = req.get("auth", None) or sess.get("user", None)
+        
+        # Use state registry resolution logic
+        try:
+            from .registry import state_registry
+            if state_registry.is_state_type(cls):
+                return state_registry.resolve_state_sync(cls, req, sess, auth)
+        except (ImportError, AttributeError):
+            pass
+        
+        # Fallback: create new instance (for backward compatibility)
+        return cls()

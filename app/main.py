@@ -194,7 +194,7 @@ class CounterState(State):
     last_updated_by: str = ""
     update_count: int = 0
     
-    @event
+    @event(method="post")
     async def increment(self, amount: int = 1, user: str = "Anonymous"):      
         self.update_count += 1
         for i in range(amount):
@@ -203,7 +203,7 @@ class CounterState(State):
             await asyncio.sleep(i/1000)
             yield Div(f"Counter incremented by {i+1} by {user}",id="message", cls="font-mono text-sm text-green-600")
     
-    @event  
+    @event(method="post")
     async def decrement(self, amount: int = 1, user: str = "Anonymous"):
         self.update_count += 1
         for i in range(amount):
@@ -213,7 +213,7 @@ class CounterState(State):
             yield Div(f"Counter decremented by {i+1} by {user}",id="message", cls="font-mono text-sm text-red-600")
         
     
-    @event
+    @event(method="post")
     async def reset(self, user: str = "Anonymous"):
         self.update_count += 1
         for i in range(abs(self.count)):
@@ -743,7 +743,7 @@ def global_counter(req: Request, sess: dict, auth: str = None):
     username = auth or sess.get('auth', 'Anonymous')
     
     return Titled("Global Counter",
-        Div({"data-signals": json.dumps(counter.model_dump()), "data-on-load__delay.1s": counter.push()}, id="counter-state"),
+        counter,
         Main(
             Div(
                 H1("🔢 Global Counter Demo", cls="text-3xl font-bold mb-6"),
