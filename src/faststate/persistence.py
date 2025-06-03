@@ -513,7 +513,7 @@ class StatePersistenceManager:
         """Clean up expired states using specified backend."""
         persistence_backend = self.get_backend(backend)
         return await persistence_backend.cleanup_expired()
-
+    
     # Synchronous methods for dependency injection compatibility
     def save_state_sync(
         self,
