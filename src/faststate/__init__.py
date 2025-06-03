@@ -26,11 +26,6 @@ __all__ = [
     'FastStateRegistry',
     'state_registry',
     
-    # FastHTML integration
-    # 'initialize_faststate',
-    # 'create_state_middleware',
-    # 'get_state_info',
-    
     # Persistence layer
     'StatePersistenceBackend',
     'RedisStatePersistence', 

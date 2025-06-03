@@ -13,7 +13,7 @@ from monsterui.all import *
 
 # Import FastState components
 from faststate import (
-    State, event, StateScope, StateConfig, state_registry, persistence_manager,
+    State, event, state_registry, persistence_manager,
     MemoryStatePersistence, DatabaseStatePersistence
 )
 
@@ -45,6 +45,12 @@ class MyState(State):
     myInt: int = 0
     myStr: str = "Hello"
     tick_count: int = 0
+    
+    # Auto-registration configuration
+    _scope: str = "session"
+    _auto_persist: bool = False
+    _persistence_backend: str = "memory"
+    _ttl: int = None
 
     @event
     def increment(self, amount: int):
@@ -73,6 +79,12 @@ class UserProfileState(State):
     name: str = ""
     email: str = ""
     preferences: dict = {}
+    
+    # Auto-registration configuration
+    _scope: str = "user"
+    _auto_persist: bool = True
+    _persistence_backend: str = "database"
+    _ttl: int = 3600
     
     @event(selector="#profile-updates")
     def update_profile(self, name: str, email: str):
@@ -104,6 +116,12 @@ class GlobalSettingsState(State):
     maintenance_mode: bool = False
     announcement: str = ""
     
+    # Auto-registration configuration
+    _scope: str = "global"
+    _auto_persist: bool = True
+    _persistence_backend: str = "database"
+    _ttl: int = None
+    
     @event
     def toggle_maintenance(self):
         self.maintenance_mode = not self.maintenance_mode
@@ -128,6 +146,12 @@ class ProductState(State):
     description: str = ""
     in_stock: bool = True
     
+    # Auto-registration configuration
+    _scope: str = "record"
+    _auto_persist: bool = True
+    _persistence_backend: str = "database"
+    _ttl: int = 7200
+    
     @event
     def update_product(self, name: str, price: float, description: str):
         self.name = name
@@ -147,6 +171,12 @@ class ChatState(State):
     messages: list = []
     active_users: int = 0
     last_message_id: int = 0
+    
+    # Auto-registration configuration
+    _scope: str = "global"
+    _auto_persist: bool = True
+    _persistence_backend: str = "memory"
+    _ttl: int = None
     
     @event(selector="#chat-messages")
     def send_message(self, username: str, message: str):
@@ -194,6 +224,12 @@ class CounterState(State):
     last_updated_by: str = ""
     update_count: int = 0
     
+    # Auto-registration configuration
+    _scope: str = "global"
+    _auto_persist: bool = True
+    _persistence_backend: str = "database"
+    _ttl: int = None
+    
     @event(method="post")
     async def increment(self, amount: int = 1, user: str = "Anonymous"):      
         self.update_count += 1
@@ -230,70 +266,10 @@ class CounterState(State):
 
 
 # =============================================================================
-# STATE REGISTRATION
+# AUTO STATE REGISTRATION  
 # =============================================================================
 
-print("📝 Registering state types...")
-
-# Register MyState with session scope (default behavior)
-state_registry.register(
-    MyState,
-    StateConfig(scope=StateScope.SESSION)
-)
-
-# Register UserProfileState with user scope and persistence
-state_registry.register(
-    UserProfileState,
-    StateConfig(
-        scope=StateScope.USER,
-        auto_persist=True,
-        persistence_backend="database",
-        ttl=3600  # 1 hour cache
-    )
-)
-
-# Register GlobalSettingsState with global scope and persistence
-state_registry.register(
-    GlobalSettingsState,
-    StateConfig(
-        scope=StateScope.GLOBAL,
-        auto_persist=True,
-        persistence_backend="database"
-    )
-)
-
-# Register ProductState with record scope and database persistence
-state_registry.register(
-    ProductState,
-    StateConfig(
-        scope=StateScope.RECORD, 
-        auto_persist=True,
-        persistence_backend="database",
-        ttl=7200  # 2 hours cache
-    )
-)
-
-# Register ChatState with global scope for real-time chat
-state_registry.register(
-    ChatState,
-    StateConfig(
-        scope=StateScope.GLOBAL,
-        auto_persist=True,
-        persistence_backend="memory"  # Use memory for demo chat
-    )
-)
-
-# Register CounterState with global scope and persistence
-state_registry.register(
-    CounterState,
-    StateConfig(
-        scope=StateScope.GLOBAL,
-        auto_persist=True,
-        persistence_backend="database"
-    )
-)
-
-print("✅ State registration complete!")
+print("📝 States will auto-register on first access using class-level configuration...")
 
 # =============================================================================
 # AUTHENTICATION BEFOREWARE

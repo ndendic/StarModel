@@ -152,6 +152,12 @@ def event(path=None, *, method="get", selector=None, merge_mode="morph"):
 class State(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     
+    # Configuration attributes (excluded from model_dump by Pydantic underscore convention)
+    _scope: str = "session"  # Default to session scope
+    _auto_persist: bool = False
+    _persistence_backend: str = "memory"
+    _ttl: int = None
+    
     def __ft__(self):
         return Div({"data-signals": json.dumps(self.model_dump()), "data-on-load": self.live()}, id=f"{self.__class__.__name__}"),
 
@@ -166,7 +172,7 @@ class State(BaseModel):
                 _add_url_generator(cls, name, method, method._event_config)
 
     @event
-    async def live(self, heartbeat: float = 1) -> 'State':
+    async def live(self, heartbeat: float = 1):
         while True:
             yield self.model_dump()
             await asyncio.sleep(heartbeat)
@@ -178,15 +184,56 @@ class State(BaseModel):
         if sess is None:
             sess = req.get('session', None)
         if auth is None:
-            auth = req.get("auth", None) or sess.get("user", None)
+            auth = req.get("auth", None) if req else None
+            if not auth and sess:
+                auth = sess.get("user", None)
         
-        # Use state registry resolution logic
+        # Import needed components
         try:
-            from .registry import state_registry
-            if state_registry.is_state_type(cls):
-                return state_registry.resolve_state_sync(cls, req, sess, auth)
-        except (ImportError, AttributeError):
-            pass
-        
-        # Fallback: create new instance (for backward compatibility)
-        return cls()
+            from .registry import state_registry, StateScope, StateConfig
+            
+            # Auto-register the state class if not already registered
+            if not state_registry.is_state_type(cls):
+                # Convert string scope to StateScope enum  
+                scope_map = {
+                    "session": StateScope.SESSION,
+                    "global": StateScope.GLOBAL,
+                    "user": StateScope.USER,
+                    "record": StateScope.RECORD,
+                    "component": StateScope.COMPONENT
+                }
+                
+                # Get actual values from class attributes
+                # Handle Pydantic ModelPrivateAttr objects by accessing their default values
+                scope_attr = getattr(cls, '_scope', None)
+                scope_str = scope_attr.default if hasattr(scope_attr, 'default') else 'session'
+                
+                auto_persist_attr = getattr(cls, '_auto_persist', None)
+                auto_persist = auto_persist_attr.default if hasattr(auto_persist_attr, 'default') else False
+                
+                persistence_backend_attr = getattr(cls, '_persistence_backend', None)
+                persistence_backend = persistence_backend_attr.default if hasattr(persistence_backend_attr, 'default') else 'memory'
+                
+                ttl_attr = getattr(cls, '_ttl', None)
+                ttl = ttl_attr.default if hasattr(ttl_attr, 'default') else None
+                
+                scope = scope_map.get(scope_str, StateScope.SESSION)
+                
+                # Create StateConfig from class attributes
+                config = StateConfig(
+                    scope=scope,
+                    auto_persist=auto_persist,
+                    persistence_backend=persistence_backend,
+                    ttl=ttl
+                )
+                
+                # Register the state
+                state_registry.register(cls, config)
+            
+            # Use state registry resolution logic
+            return state_registry.resolve_state_sync(cls, req, sess, auth)
+            
+        except (ImportError, AttributeError, Exception) as e:
+            print(f"Error getting state: {e}")
+            # Fallback: create new instance (for backward compatibility)
+            return cls()
