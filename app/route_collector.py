@@ -3,7 +3,7 @@ import pkgutil
 
 from fasthtml.core import APIRouter, FastHTML
 
-def collect_rt_instances(package_name: str = "modules") -> list[APIRouter]:
+def collect_rt_instances(package_name) -> list[APIRouter]:
     rt_list = []
 
     # Import the modules package
@@ -45,8 +45,8 @@ def collect_rt_instances(package_name: str = "modules") -> list[APIRouter]:
 
     return rt_list
 
-def add_routes(app: FastHTML) -> FastHTML:
-    routes = collect_rt_instances()
+def add_routes(app: FastHTML, from_package: str = "pages") -> FastHTML:
+    routes = collect_rt_instances(from_package)
     for rt in routes:
         rt.to_app(app)
     return app

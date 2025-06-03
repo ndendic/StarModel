@@ -93,16 +93,16 @@ class FastStateRegistry:
         config = self._state_configs[state_cls]
         
         # Generate state key
-        state_key = self._generate_state_key(state_cls, config, req, sess, auth)
-        
-        # Return cached instance if available
-        if state_key in self._state_instances:
-            return self._state_instances[state_key]
+        state_key = self._generate_state_key(state_cls, config, req, sess, auth)                
         
         # Try to load from persistence if enabled (synchronous version)
         state = None
         if config.auto_persist and config.persistence_backend:
             state = self._load_from_persistence_sync(state_cls, state_key, config)
+
+        # Return cached instance if available
+        if state_key in self._state_instances:
+            return self._state_instances[state_key]
         
         # Create new instance if not found in persistence
         if state is None:

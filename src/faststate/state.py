@@ -9,6 +9,9 @@ from datastar_py import ServerSentEventGenerator as SSE
 from fasthtml.common import *
 from fasthtml.core import APIRouter, StreamingResponse
 from pydantic import BaseModel, Field
+
+datastar_script = Script(src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.0-beta.11/bundles/datastar.js", type="module")
+
 rt = APIRouter()
 
 def _register_event_route(state_cls, method, config):
@@ -158,8 +161,25 @@ class State(BaseModel):
     _persistence_backend: str = "memory"
     _ttl: int = None
     
+    
+
+    def LiveDiv(self, heartbeat: float = 1):
+        return Div({"data-on-load": self.live(heartbeat)}, id=f"{self.__class__.__name__}")
+
+    def SignalsDiv(self):
+        return Div({"data-signals": json.dumps(self.model_dump())}, id=f"{self.__class__.__name__}"),
+
+    
+    @event
+    async def live(self, heartbeat: float = 1):
+        while True:
+            yield self.model_dump()
+            await asyncio.sleep(heartbeat)
+
+    
     def __ft__(self):
-        return Div({"data-signals": json.dumps(self.model_dump()), "data-on-load": self.live()}, id=f"{self.__class__.__name__}"),
+        return self.SignalsDiv()    
+    
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -170,12 +190,7 @@ class State(BaseModel):
                 _register_event_route(cls, method, method._event_config)
                 # Add URL generator static method
                 _add_url_generator(cls, name, method, method._event_config)
-
-    @event
-    async def live(self, heartbeat: float = 1):
-        while True:
-            yield self.model_dump()
-            await asyncio.sleep(heartbeat)
+    
 
     @classmethod
     def get(cls, req: Request, sess: dict = None, auth: str = None) -> 'State':
