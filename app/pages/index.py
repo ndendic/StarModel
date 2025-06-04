@@ -32,7 +32,6 @@ class MyState(State):
         return H4("Tick #", Span(data_text="$tick_count"), cls="text-red-500")
 
 
-
 @rt('/')
 def index(req: Request, sess: dict, auth: str = None):
     """
@@ -111,10 +110,15 @@ def index(req: Request, sess: dict, auth: str = None):
 
 @rt('/playground')
 def playground(req: Request):
+    my_state = MyState.get(req)
     return Main(
+        my_state,
+        Div(data_persist=True),
+        Div({"data-on-online__window": MyState.sync(req)}),
+        Div({"data-on-load": MyState.sync(req)}),
         Div(
            H1("Playground"),
-           Div(data_signals="{'myInt': 0}", data_text="$myInt",data_persist=True, cls="text-4xl font-bold text-center mb-6"),
+           Div(data_text="$myInt",data_persist=True, cls="text-4xl font-bold text-center mb-6"),
            Input(data_bind="$myInt"), 
            cls="container mx-auto p-8 max-w-4xl"
         )
