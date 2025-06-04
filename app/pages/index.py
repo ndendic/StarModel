@@ -54,6 +54,8 @@ def index(req: Request, sess: dict, auth: str = None):
         ),
         
         # State information
+        my_state,  # Uses __ft__ method for rendering
+        Div({"data-persist__session":True}),
         Div(
             H2("📊 Current State Info", cls="text-2xl font-bold mb-4"),
             Div(
@@ -64,10 +66,7 @@ def index(req: Request, sess: dict, auth: str = None):
             ),
             cls="mb-8"
         ),
-        
-        # State display and controls
-        my_state,  # Uses __ft__ method for rendering
-        
+                
         # Interactive controls
         Div(
             H3("🎮 Interactive Controls", cls="text-xl font-bold mb-4"),
@@ -108,4 +107,15 @@ def index(req: Request, sess: dict, auth: str = None):
         ),
         
         cls="container mx-auto p-8 max-w-4xl"
+    )
+
+@rt('/playground')
+def playground(req: Request):
+    return Main(
+        Div(
+           H1("Playground"),
+           Div(data_signals="{'myInt': 0}", data_text="$myInt",data_persist=True, cls="text-4xl font-bold text-center mb-6"),
+           Input(data_bind="$myInt"), 
+           cls="container mx-auto p-8 max-w-4xl"
+        )
     )

@@ -12,9 +12,12 @@ class CounterState(State):
     update_count: int = 0
     
     # Auto-registration configuration
-    _scope: str = "global"
-    _auto_persist: bool = True
-    _ttl: int = 30
+    _config = StateConfig(
+        scope=StateScope.GLOBAL,
+        auto_persist=True,
+        persistence_backend="memory",
+        ttl=30
+    )
     
     @event(method="post")
     async def increment(self, amount: int = 1, user: str = "Anonymous"):      
@@ -56,7 +59,7 @@ def global_counter(req: Request, sess: dict, auth: str = None):
     
     return Main(
         counter,
-        # counter.LiveDiv(heartbeat=0),
+        counter.LiveDiv(heartbeat=0),
         Div(
             H1("🔢 Global Counter Demo", cls="text-3xl font-bold mb-6"),
             P("This counter is shared globally across all users and persisted to database. Open multiple tabs to see the counter update in real-time.", 

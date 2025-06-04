@@ -12,10 +12,12 @@ class ProductState(State):
     in_stock: bool = True
     
     # Auto-registration configuration
-    _scope: str = "record"
-    _auto_persist: bool = True
-    _persistence_backend: str = "database"
-    _ttl: int = 7200
+    _config = StateConfig(
+        scope=StateScope.RECORD,
+        auto_persist=True,
+        persistence_backend="database",
+        ttl=7200
+    )
     
     @event
     def update_product(self, name: str, price: float, description: str):

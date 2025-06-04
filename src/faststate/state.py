@@ -152,18 +152,16 @@ def event(path=None, *, method="get", selector=None, merge_mode="morph"):
     
     return decorator
 
+
 class State(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     
-    # Configuration attributes (excluded from model_dump by Pydantic underscore convention)
-    _scope: str = "session"  # Default to session scope
-    _auto_persist: bool = False
-    _persistence_backend: str = "memory"
-    _ttl: int = None
+    # Configuration (excluded from model_dump by Pydantic underscore convention)
+    _config = None  # Will use default StateConfig if not set
     
     
 
-    def LiveDiv(self, heartbeat: float = 1):
+    def LiveDiv(self, heartbeat: float = 0):
         return Div({"data-on-load": self.live(heartbeat)}, id=f"{self.__class__.__name__}")
 
     def SignalsDiv(self):
@@ -171,7 +169,7 @@ class State(BaseModel):
 
     
     @event
-    async def live(self, heartbeat: float = 1):
+    async def live(self, heartbeat: float = 0):
         while True:
             yield self.model_dump()
             await asyncio.sleep(heartbeat)
@@ -180,6 +178,28 @@ class State(BaseModel):
     def __ft__(self):
         return self.SignalsDiv()    
     
+    @classmethod
+    def _get_config(cls):
+        """Get the effective StateConfig for this class."""
+        from .registry import StateConfig
+        
+        # Check if this class (not parent) defines _config
+        config_attr = getattr(cls, '_config', None)
+        
+        # Check if this is a ModelPrivateAttr with a default, or a direct value
+        if hasattr(config_attr, 'default') and config_attr.default is not None:
+            config = config_attr.default
+        elif config_attr is not None and not hasattr(config_attr, 'default'):
+            config = config_attr
+        else:
+            # Check if this class is the base State class or a subclass without explicit config
+            if cls.__name__ == 'State' or '_config' not in cls.__private_attributes__:
+                config = StateConfig()
+            else:
+                # This should not happen, but fallback to default
+                config = StateConfig()
+        
+        return config
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -205,42 +225,12 @@ class State(BaseModel):
         
         # Import needed components
         try:
-            from .registry import state_registry, StateScope, StateConfig
+            from .registry import state_registry
             
             # Auto-register the state class if not already registered
             if not state_registry.is_state_type(cls):
-                # Convert string scope to StateScope enum  
-                scope_map = {
-                    "session": StateScope.SESSION,
-                    "global": StateScope.GLOBAL,
-                    "user": StateScope.USER,
-                    "record": StateScope.RECORD,
-                    "component": StateScope.COMPONENT
-                }
-                
-                # Get actual values from class attributes
-                # Handle Pydantic ModelPrivateAttr objects by accessing their default values
-                scope_attr = getattr(cls, '_scope', None)
-                scope_str = scope_attr.default if hasattr(scope_attr, 'default') else 'session'
-                
-                auto_persist_attr = getattr(cls, '_auto_persist', None)
-                auto_persist = auto_persist_attr.default if hasattr(auto_persist_attr, 'default') else False
-                
-                persistence_backend_attr = getattr(cls, '_persistence_backend', None)
-                persistence_backend = persistence_backend_attr.default if hasattr(persistence_backend_attr, 'default') else 'memory'
-                
-                ttl_attr = getattr(cls, '_ttl', None)
-                ttl = ttl_attr.default if hasattr(ttl_attr, 'default') else None
-                
-                scope = scope_map.get(scope_str, StateScope.SESSION)
-                
-                # Create StateConfig from class attributes
-                config = StateConfig(
-                    scope=scope,
-                    auto_persist=auto_persist,
-                    persistence_backend=persistence_backend,
-                    ttl=ttl
-                )
+                # Get effective config for this class
+                config = cls._get_config()
                 
                 # Register the state
                 state_registry.register(cls, config)
