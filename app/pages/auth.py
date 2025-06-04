@@ -1,6 +1,7 @@
 from fasthtml.common import *
 from monsterui.all import *
 from faststate import *
+import json
 
 rt = APIRouter()
 
@@ -11,10 +12,12 @@ class UserProfileState(State):
     preferences: dict = {}
     
     # Auto-registration configuration
-    _scope: str = "user"
-    _auto_persist: bool = True
-    _persistence_backend: str = "database"
-    _ttl: int = 3600
+    _config = StateConfig(
+        scope=StateScope.USER,
+        auto_persist=True,
+        persistence_backend="database",
+        ttl=3600
+    )
     
     @event(selector="#profile-updates")
     def update_profile(self, name: str, email: str):

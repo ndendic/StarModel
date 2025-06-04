@@ -4,11 +4,12 @@ This document provides detailed technical documentation for each core component 
 
 ## Table of Contents
 
-1. [State Base Class](#reactivestate-base-class)
+1. [State Base Class](#state-base-class)
 2. [State Registry System](#state-registry-system)
-3. [FastHTML Integration Layer](#fasthtml-integration-layer)
+3. [Auto-Registration System](#auto-registration-system)
 4. [Event Decorator System](#event-decorator-system)
-5. [SSE Response Generation](#sse-response-generation)
+5. [Configuration System](#configuration-system)
+6. [SSE Response Generation](#sse-response-generation)
 
 ---
 
@@ -16,23 +17,26 @@ This document provides detailed technical documentation for each core component 
 
 **Location**: `src/faststate/state.py`
 
-The `State` class is the foundation of the FastState system, providing reactive state management with automatic SSE generation.
+The `State` class is the foundation of the FastState system, providing reactive state management with automatic SSE generation and auto-registration.
 
 ### Class Definition
 
 ```python
-class State(SQLModel):
+class State(BaseModel):
     """
     Base class for reactive state management with automatic SSE generation.
     
-    Inherits from SQLModel to provide:
-    - Pydantic data validation
-    - Type safety with Python type hints
-    - Optional database persistence via SQLAlchemy
+    Inherits from Pydantic BaseModel to provide:
+    - Data validation and type safety
     - JSON serialization for SSE responses
+    - Model configuration and field management
+    - Automatic configuration handling
     """
     
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    
+    # Configuration (excluded from model_dump by Pydantic underscore convention)
+    _config = None  # Will use default StateConfig if not set
 ```
 
 ### Key Features
@@ -43,91 +47,73 @@ Every state instance gets a unique UUID for identification:
 - **Type**: String UUID4
 - **Usage**: Used in state registry caching and client identification
 
-#### 2. SQLModel Integration
-Inherits all SQLModel capabilities:
+#### 2. Pydantic BaseModel Integration
+Inherits all BaseModel capabilities:
 - **Validation**: Automatic type checking and validation
 - **Serialization**: JSON serialization for SSE responses
-- **Database**: Optional SQLAlchemy table creation
-- **Type Safety**: Full mypy/IDE support
+- **Configuration**: Field management and model configuration
 
-#### 3. Event Registration
-The `@event` decorator automatically registers methods as HTTP endpoints:
-
+#### 3. Auto-Registration System
+States automatically register themselves on first access:
 ```python
-class MyState(State):
-    count: int = 0
-    
-    @event  # Creates /MyState/increment endpoint
-    def increment(self, amount: int):
-        self.count += amount
+@classmethod
+def get(cls, req: Request, sess: dict = None, auth: str = None) -> 'State':
+    """Get state instance for this state class from the request context."""
+    # Auto-registration happens here on first access
+    config = cls._get_config()
+    if not state_registry.is_state_type(cls):
+        state_registry.register(cls, config)
+    return state_registry.resolve_state_sync(cls, req, sess, auth)
 ```
 
-#### 4. SSE Response Generation
-The `_diff_and_events` method creates SSE responses:
-
+#### 4. Configuration Resolution
+Smart configuration handling with defaults:
 ```python
-def _diff_and_events(self, old_state: dict, new_state: dict) -> Any:
-    """
-    Generate SSE response with state changes.
+@classmethod
+def _get_config(cls):
+    """Get the effective StateConfig for this class."""
+    from .registry import StateConfig
     
-    Args:
-        old_state: Previous state as dict
-        new_state: Current state as dict
-        
-    Returns:
-        SSE response with datastar-merge-signals event
-    """
-    changes = {}
-    for key, new_value in new_state.items():
-        if key not in old_state or old_state[key] != new_value:
-            changes[key] = new_value
+    # Check if this class (not parent) defines _config
+    config_attr = getattr(cls, '_config', None)
     
-    if changes:
-        sse_data = f"event: datastar-merge-signals\ndata: {json.dumps(changes)}\n\n"
-        return Response(content=sse_data, media_type="text/plain")
+    if hasattr(config_attr, 'default') and config_attr.default is not None:
+        config = config_attr.default
+    elif config_attr is not None and not hasattr(config_attr, 'default'):
+        config = config_attr
+    else:
+        # Use default StateConfig for classes without explicit config
+        config = StateConfig()
     
-    return Response(content="", media_type="text/plain")
+    return config
 ```
 
-#### 5. HTML Rendering
-The `__ft__` method enables direct use in FastHTML templates:
+#### 5. Event Method Registration
+Automatic route generation for `@event` decorated methods:
+```python
+def __init_subclass__(cls, **kwargs):
+    super().__init_subclass__(**kwargs)
+    # Register event-decorated methods as routes and add URL generators
+    for name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
+        if hasattr(method, '_event_config'):
+            # Register the route
+            _register_event_route(cls, method, method._event_config)
+            # Add URL generator static method
+            _add_url_generator(cls, name, method, method._event_config)
+```
 
+#### 6. UI Rendering Support
+Built-in methods for FastHTML integration:
 ```python
 def __ft__(self):
-    """FastHTML component rendering"""
-    return Div(
-        H3("State Values", cls="text-xl font-bold mb-4"),
-        Div("Count: ", Span(data_text="$count"), cls="mb-2"),
-        # ... more UI elements
-    )
+    return self.SignalsDiv()
+
+def SignalsDiv(self):
+    return Div({"data-signals": json.dumps(self.model_dump())}, id=f"{self.__class__.__name__}")
+
+def LiveDiv(self, heartbeat: float = 0):
+    return Div({"data-on-load": self.live(heartbeat)}, id=f"{self.__class__.__name__}")
 ```
-
-### Internal Implementation Details
-
-#### State Capture and Diffing
-```python
-@event
-def my_event(self, param: str):
-    # 1. Capture old state
-    old_state = self.model_dump()
-    
-    # 2. Perform mutations
-    self.some_property = param
-    
-    # 3. Capture new state
-    new_state = self.model_dump()
-    
-    # 4. Generate SSE response with diffs
-    return self._diff_and_events(old_state, new_state)
-```
-
-#### Method Registration Process
-When a class is defined with `@event` decorated methods:
-1. **Route Creation**: FastHTML route created at `/ClassName/method_name`
-2. **Parameter Mapping**: Method parameters mapped to HTTP request parameters
-3. **State Retrieval**: Current state instance retrieved from registry
-4. **Method Execution**: Decorated method called with request parameters
-5. **SSE Generation**: Automatic diff calculation and SSE response
 
 ---
 
@@ -135,15 +121,15 @@ When a class is defined with `@event` decorated methods:
 
 **Location**: `src/faststate/registry.py`
 
-The registry system manages state instances, configurations, and scope-based resolution.
+The registry system manages state instances with different scopes and configurations, providing automatic caching and persistence integration.
 
-### StateScope Enumeration
+### StateScope Enum
 
 ```python
-class StateScope(Enum):
+class StateScope(StrEnum):
     """Enumeration of different state scopes supported by FastState."""
     GLOBAL = "global"        # Shared across all users
-    SESSION = "session"      # Per user session (default)
+    SESSION = "session"      # Per user session (current default)
     USER = "user"           # Per authenticated user across sessions
     COMPONENT = "component"  # Per component instance
     RECORD = "record"       # Tied to specific database record
@@ -152,552 +138,269 @@ class StateScope(Enum):
 ### StateConfig Class
 
 ```python
-@dataclass
-class StateConfig:
+class StateConfig(BaseModel):
     """Configuration for a state class defining its scope and persistence."""
     scope: StateScope = StateScope.SESSION
     ttl: Optional[int] = None  # Time to live in seconds
     auto_persist: bool = False
+    persistence_backend: Optional[str] = None  # Name of persistence backend to use
 ```
 
-**Configuration Options**:
-- **scope**: Determines state isolation and sharing behavior
-- **ttl**: Automatic cleanup after specified seconds (None = no expiration)
-- **auto_persist**: Automatically save state changes to database
-
-### FastStateRegistry Class
-
-The registry manages all state types and instances.
-
-#### Core Data Structures
-
-```python
-class FastStateRegistry:
-    def __init__(self):
-        self._state_configs: Dict[Type, StateConfig] = {}
-        self._state_instances: Dict[str, 'State'] = {}
-```
-
-- **_state_configs**: Maps state classes to their configurations
-- **_state_instances**: Caches state instances by hierarchical keys
+### Registry Operations
 
 #### State Registration
-
 ```python
 def register(self, state_cls: Type['State'], config: StateConfig):
     """Register a state class for automatic dependency injection."""
     self._state_configs[state_cls] = config
 ```
 
-**Process**:
-1. Store state class and configuration mapping
-2. Validate configuration consistency
-3. Enable type-based resolution in dependency injection
-
 #### State Resolution
-
 ```python
-def resolve_state(self, state_cls: Type, req: Request, sess: dict, auth: Optional[str] = None) -> 'State':
-    """Resolve state instance based on registered configuration."""
+def resolve_state_sync(self, state_cls: Type, req: Request, sess: dict, auth: Optional[str] = None) -> 'State':
+    """Resolve state instance based on registered configuration (synchronous version)."""
     config = self._state_configs[state_cls]
     
-    # Generate hierarchical state key
+    # Generate state key based on scope
     state_key = self._generate_state_key(state_cls, config, req, sess, auth)
     
     # Return cached instance if available
     if state_key in self._state_instances:
         return self._state_instances[state_key]
     
-    # Create new instance
-    state = self._create_state_instance(state_cls, config, req, sess, auth)
+    # Try to load from persistence if enabled
+    state = None
+    if config.auto_persist and config.persistence_backend:
+        state = self._load_from_persistence_sync(state_cls, state_key, config)
+
+    # Create new instance if not found in persistence
+    if state is None:
+        state = self._create_state_instance(state_cls, config, req, sess, auth)
+    
+    # Cache and optionally persist the instance
     self._state_instances[state_key] = state
     
-    # Maintain compatibility with existing session storage
-    if config.scope == StateScope.SESSION:
-        sess[f"{state_cls.__name__}_id"] = state.id
+    if config.auto_persist and config.persistence_backend:
+        self._save_to_persistence_sync(state, state_key, config)
         
     return state
 ```
 
-#### Hierarchical Key Generation
-
-```python
-def _generate_state_key(self, state_cls: Type, config: StateConfig, 
-                       req: Request, sess: dict, auth: Optional[str]) -> str:
-    """Generate hierarchical state key based on scope."""
-    class_name = state_cls.__name__
-    
-    match config.scope:
-        case StateScope.SESSION:
-            session_id = sess.get('session_id', id(sess))
-            return f"session:{class_name}:{session_id}"
-            
-        case StateScope.USER:
-            if not auth:
-                raise ValueError(f"User-scoped state {class_name} requires authentication")
-            return f"user:{class_name}:{auth}"
-            
-        case StateScope.GLOBAL:
-            return f"global:{class_name}"
-            
-        case StateScope.COMPONENT:
-            # Component scoped to specific UI component instance
-            component_id = (req.query_params.get('component_id') or 
-                          req.path_params.get('component_id') or
-                          sess.get(f'{class_name}_component_id', str(uuid.uuid4())))
-            return f"component:{class_name}:{component_id}"
-            
-        case StateScope.RECORD:
-            # Record scoped to specific database record
-            record_id = (req.query_params.get('record_id') or 
-                       req.path_params.get('record_id') or
-                       req.query_params.get('id') or
-                       req.path_params.get('id'))
-            if not record_id:
-                raise ValueError(f"Record-scoped state {class_name} requires record_id parameter")
-            return f"record:{class_name}:{record_id}"
-```
-
-**Key Pattern Benefits**:
-- **Namespace Isolation**: Different scopes can't collide
-- **Predictable Keys**: Easy debugging and monitoring
-- **Hierarchical Structure**: Clear scope relationships
-- **Parameter Integration**: Automatic extraction from requests
-
-#### Instance Creation and Persistence
-
-```python
-def _create_state_instance(self, state_cls: Type, config: StateConfig,
-                          req: Request, sess: dict, auth: Optional[str]) -> 'State':
-    """Create new state instance, optionally loading from persistence."""
-    if config.scope == StateScope.RECORD:
-        # For record-scoped states, try to load from database first
-        record_id = (req.query_params.get('record_id') or 
-                    req.path_params.get('record_id') or
-                    req.query_params.get('id') or
-                    req.path_params.get('id'))
-        
-        if config.auto_persist and record_id:
-            existing_state = self._load_from_persistence(state_cls, record_id)
-            if existing_state:
-                return existing_state
-    
-    # Create new instance
-    return state_cls()
-
-def _load_from_persistence(self, state_cls: Type, record_id: str) -> Optional['State']:
-    """Load state from persistence layer."""
-    # Future: Integrate with database/Redis/etc.
-    # For now, return None to always create new instances
-    return None
-```
-
 ---
 
-## FastHTML Integration Layer
+## Auto-Registration System
 
-**Location**: `src/faststate/fasthtml_integration.py`
+The auto-registration system eliminates the need for manual `state_registry.register()` calls by automatically registering states on first access.
 
-This layer extends FastHTML's dependency injection system through monkey patching.
+### How It Works
 
-### Monkey Patch Implementation
+1. **Class-Level Configuration**: States define configuration using `_config` attribute
+2. **Smart Defaults**: States without `_config` get SESSION scope with no persistence
+3. **First Access Registration**: Registration happens automatically when `.get()` is called
+4. **Configuration Resolution**: Uses `_get_config()` to handle both explicit and default configurations
 
-#### Core Patch Function
-
-```python
-def patch_fasthtml_for_state_injection():
-    """Extend FastHTML's parameter injection system to handle state types."""
-    try:
-        import fasthtml.core
-        from fasthtml.core import FastHTML
-        
-        # Store original add_route method
-        original_add_route = FastHTML.add_route
-        
-        def enhanced_add_route(self, *args, **kwargs):
-            """Enhanced route addition that wraps handlers with state injection."""
-            
-            # Handle different call patterns from FastHTML
-            if len(args) >= 2:
-                path, endpoint = args[0], args[1]
-                remaining_args = args[2:]
-            elif len(args) == 1 and hasattr(args[0], '__call__'):
-                # Called as add_route(route_object)
-                return original_add_route(self, *args, **kwargs)
-            else:
-                # Unknown pattern, pass through
-                return original_add_route(self, *args, **kwargs)
-            
-            # Inspect endpoint for state parameters
-            if callable(endpoint):
-                sig = inspect.signature(endpoint)
-                state_params = []
-                
-                for param_name, param in sig.parameters.items():
-                    if state_registry.is_state_type(param.annotation):
-                        state_params.append((param_name, param.annotation))
-                
-                if state_params:
-                    # Create wrapper that injects states
-                    endpoint = create_state_injecting_wrapper(endpoint, state_params)
-            
-            # Call original add_route with enhanced endpoint
-            return original_add_route(self, path, endpoint, *remaining_args, **kwargs)
-        
-        # Apply the patch
-        FastHTML.add_route = enhanced_add_route
-        return True
-        
-    except ImportError:
-        return False
-```
-
-#### State Injection Wrapper
+### Configuration Examples
 
 ```python
-def create_state_injecting_wrapper(endpoint, state_params):
-    """Create wrapper function that injects state instances."""
+# Simple state with defaults (SESSION scope, no persistence)
+class MyState(State):
+    myInt: int = 0
+    myStr: str = "Hello"
+    # No _config needed - gets defaults automatically
+
+# Advanced state with explicit configuration
+class CounterState(State):
+    count: int = 0
     
-    @wraps(endpoint)
-    def state_injecting_wrapper(*args, **kwargs):
-        # Extract special FastHTML parameters
-        req = kwargs.get('req') or kwargs.get('request')
-        sess = kwargs.get('sess') or kwargs.get('session') or {}
-        auth = kwargs.get('auth')
-        
-        if not req:
-            # Try to find request in args
-            for arg in args:
-                if isinstance(arg, Request):
-                    req = arg
-                    break
-        
-        if not req:
-            raise ValueError("Request object not available for state injection")
-        
-        # Inject state instances
-        for param_name, state_type in state_params:
-            if param_name not in kwargs:
-                state_instance = state_registry.resolve_state(state_type, req, sess, auth)
-                kwargs[param_name] = state_instance
-        
-        # Call original function with injected states
-        return endpoint(*args, **kwargs)
-    
-    return state_injecting_wrapper
+    _config = StateConfig(
+        scope=StateScope.GLOBAL,
+        auto_persist=True,
+        persistence_backend="database",
+        ttl=3600
+    )
 ```
 
-#### Async/Sync Compatibility
+### Benefits
 
-The wrapper handles both synchronous and asynchronous route functions:
-
-```python
-if asyncio.iscoroutinefunction(endpoint):
-    @wraps(endpoint)
-    async def async_state_injecting_wrapper(*args, **kwargs):
-        # ... state injection logic
-        return await endpoint(*args, **kwargs)
-    
-    endpoint = async_state_injecting_wrapper
-else:
-    @wraps(endpoint)
-    def sync_state_injecting_wrapper(*args, **kwargs):
-        # ... state injection logic
-        return endpoint(*args, **kwargs)
-    
-    endpoint = sync_state_injecting_wrapper
-```
-
-### Integration Initialization
-
-```python
-def initialize_faststate():
-    """Initialize FastState integration with FastHTML."""
-    print("Initializing FastState integration with FastHTML...")
-    
-    success = patch_fasthtml_for_state_injection()
-    
-    if success:
-        print("🎉 FastState initialization complete!")
-        print("State types will now be automatically injected into route functions.")
-    else:
-        print("❌ FastState initialization failed!")
-        print("Manual state management will be required.")
-    
-    return success
-```
-
-### Type Detection
-
-```python
-def is_state_type(self, annotation: Any) -> bool:
-    """Check if a type annotation represents a registered state type."""
-    # Handle generic types like Optional[StateType]
-    origin = get_origin(annotation)
-    if origin is not None:
-        args = get_args(annotation)
-        if args:
-            annotation = args[0]  # Extract actual type from Optional[Type]
-    
-    return annotation in self._state_configs
-```
+- **Zero Setup**: No manual registration required
+- **Type Safety**: Configuration validated by StateConfig dataclass
+- **Smart Defaults**: Works out-of-the-box for simple use cases
+- **Flexible**: Full configuration available when needed
 
 ---
 
 ## Event Decorator System
 
-**Location**: `src/faststate/state.py`
+**Location**: `src/faststate/state.py` (functions: `event`, `_register_event_route`, `_add_url_generator`)
 
-The event system automatically creates HTTP endpoints for state methods.
+The event system provides automatic HTTP route generation and URL method creation for Datastar integration.
 
-### Event Decorator Implementation
+### Event Decorator
 
 ```python
-def event(path: str = None, method: str = "post", selector: str = "#updates", 
-         merge_mode: str = "morph", **route_kwargs):
+def event(path=None, *, method="get", selector=None, merge_mode="morph"):
     """
-    Decorator for creating reactive event handlers.
+    Simplified event decorator for State methods.
     
     Args:
-        path: Custom URL path (default: /{ClassName}/{method_name})
-        method: HTTP method (default: "post")
-        selector: CSS selector for Datastar targeting (default: "#updates")
+        path: Custom route path (optional, defaults to /{ClassName}/{method_name})
+        method: HTTP method (default: "get")
+        selector: Datastar selector for fragment updates (optional)
         merge_mode: Datastar merge mode (default: "morph")
-        **route_kwargs: Additional FastHTML route arguments
     """
     def decorator(func):
-        # Store event configuration on the function
         func._event_config = {
             'path': path,
             'method': method,
             'selector': selector,
-            'merge_mode': merge_mode,
-            'route_kwargs': route_kwargs
+            'merge_mode': merge_mode
         }
-        
-        # Mark function as an event handler
-        func._is_event = True
-        
-        # Create wrapper that handles state capture and SSE generation
-        @wraps(func)
-        def event_wrapper(self, *args, **kwargs):
-            # Capture state before modification
-            old_state = self.model_dump()
-            
-            # Execute original method
-            result = func(self, *args, **kwargs)
-            
-            # If method returns custom response, use it
-            if result is not None:
-                return result
-            
-            # Otherwise, generate automatic SSE response
-            new_state = self.model_dump()
-            return self._diff_and_events(old_state, new_state)
-        
-        return event_wrapper
+        return func
+    
+    if callable(path):  # Used as @event without parentheses
+        func = path
+        func._event_config = {'path': None, 'method': 'get', 'selector': None, 'merge_mode': 'morph'}
+        return func
     
     return decorator
 ```
 
-### Route Registration Process
+### Route Registration
 
-When a `State` class is defined, the metaclass automatically registers event routes:
+Routes are automatically registered during class creation:
 
 ```python
-class StateMeta(type):
-    """Metaclass for State that auto-registers event routes."""
-    
-    def __new__(cls, name, bases, attrs):
-        new_class = super().__new__(cls, name, bases, attrs)
-        
-        # Find event methods
-        for attr_name, attr_value in attrs.items():
-            if hasattr(attr_value, '_is_event'):
-                register_event_route(new_class, attr_name, attr_value)
-        
-        return new_class
-
-def register_event_route(state_cls, method_name, method_func):
-    """Register FastHTML route for event method."""
-    config = method_func._event_config
-    
+def _register_event_route(state_cls, method, config):
+    """Register an event method as a FastHTML route using APIRouter pattern."""
     # Generate route path
-    if config['path']:
-        route_path = config['path']
-    else:
-        route_path = f"/{state_cls.__name__}/{method_name}"
+    path = config.get('path') or f"/{state_cls.__name__}/{method.__name__}"
+    methods = [config.get('method', 'get').upper()]
+    selector = config.get('selector')
+    merge_mode = config.get('merge_mode', 'morph')
     
-    # Create route handler
-    def route_handler(request: Request, session: dict):
-        # Get state instance
-        state = _get_state(state_cls, request, session)
-        
-        # Extract parameters from request
-        params = extract_parameters(request, method_func)
-        
-        # Call event method
-        return method_func(state, **params)
+    # Create the route handler with SSE streaming
+    async def event_handler(request: Request):
+        state = state_cls.get(request)
+        # Extract parameters, call method, return SSE stream
+        # ... (parameter extraction and SSE response logic)
     
-    # Register with FastHTML router
-    rt.route(route_path, methods=[config['method'].upper()])(route_handler)
+    # Register with APIRouter
+    rt(path, methods=methods)(event_handler)
 ```
 
-### Parameter Extraction
+### URL Generator Creation
+
+Automatic static methods for Datastar attributes:
 
 ```python
-def extract_parameters(request: Request, method_func) -> dict:
-    """Extract and convert parameters for event method."""
-    sig = inspect.signature(method_func)
-    params = {}
+def _add_url_generator(state_cls, method_name, method, config):
+    """Add URL generator static method to the state class."""
+    path = config.get('path') or f"/{state_cls.__name__}/{method_name}"
+    http_method = config.get('method', 'get')
     
-    for param_name, param in sig.parameters.items():
-        if param_name == 'self':
-            continue
-            
-        # Extract from query params or form data
-        if request.method == "GET":
-            value = request.query_params.get(param_name)
+    def url_generator(*call_args, **call_kwargs):
+        # Build query parameters from args and kwargs
+        params = {}
+        # ... (parameter building logic)
+        
+        if params:
+            query_string = urllib.parse.urlencode(params)
+            return f"@{http_method}('{path}?{query_string}')"
         else:
-            # Handle both form data and JSON
-            if request.headers.get('content-type') == 'application/json':
-                json_data = request.json()
-                value = json_data.get(param_name)
-            else:
-                form_data = request.form()
-                value = form_data.get(param_name)
-        
-        # Type conversion
-        if value is not None and param.annotation != inspect.Parameter.empty:
-            value = convert_parameter(value, param.annotation)
-        
-        params[param_name] = value
+            return f"@{http_method}('{path}')"
     
-    return params
-
-def convert_parameter(value: str, target_type: type):
-    """Convert string parameter to target type."""
-    if target_type == str:
-        return value
-    elif target_type == int:
-        return int(value)
-    elif target_type == float:
-        return float(value)
-    elif target_type == bool:
-        return value.lower() in ('true', '1', 'yes', 'on')
-    else:
-        # For complex types, attempt JSON parsing
-        try:
-            return json.loads(value)
-        except:
-            return value
+    # Set as static method on the class
+    setattr(state_cls, method_name, staticmethod(url_generator))
 ```
+
+---
+
+## Configuration System
+
+The configuration system provides a unified approach to state configuration with smart defaults and explicit configuration options.
+
+### Default Configuration
+
+States without explicit `_config` automatically get:
+- **Scope**: `StateScope.SESSION`
+- **Auto-persist**: `False`
+- **Persistence backend**: `None`
+- **TTL**: `None`
+
+### Explicit Configuration
+
+States can define explicit configuration using StateConfig:
+
+```python
+class AdvancedState(State):
+    data: dict = {}
+    
+    _config = StateConfig(
+        scope=StateScope.GLOBAL,
+        auto_persist=True,
+        persistence_backend="database",
+        ttl=3600
+    )
+```
+
+### Configuration Resolution Logic
+
+The `_get_config()` method handles configuration resolution:
+
+1. **Check for explicit config**: Look for `_config` attribute on the class
+2. **Handle Pydantic fields**: Extract default value from ModelPrivateAttr if present
+3. **Return direct value**: If config is a direct StateConfig instance
+4. **Use defaults**: Create default StateConfig if no explicit config found
 
 ---
 
 ## SSE Response Generation
 
-### Diff Calculation
+**Location**: `src/faststate/state.py` (within `_register_event_route`)
+
+The SSE system provides real-time state synchronization using Server-Sent Events.
+
+### SSE Stream Generation
 
 ```python
-def _diff_and_events(self, old_state: dict, new_state: dict) -> Any:
-    """
-    Generate SSE response with state changes.
+async def sse_stream():
+    # Always send current state
+    yield SSE.merge_signals(state.model_dump())
     
-    The diff calculation finds all changed properties between old and new state,
-    then formats them as a Datastar-compatible SSE response.
-    """
-    changes = {}
-    
-    # Find changed properties
-    for key, new_value in new_state.items():
-        if key not in old_state or old_state[key] != new_value:
-            changes[key] = new_value
-    
-    # Find removed properties
-    for key in old_state:
-        if key not in new_state:
-            changes[key] = None  # Signal removal
-    
-    if changes:
-        # Create SSE response with datastar-merge-signals event
-        sse_data = f"event: datastar-merge-signals\ndata: {json.dumps(changes)}\n\n"
-        return Response(content=sse_data, media_type="text/plain")
-    
-    # No changes, return empty response
-    return Response(content="", media_type="text/plain")
+    if hasattr(result, '__aiter__'):  # Async generator
+        async for item in result:
+            yield SSE.merge_signals(state.model_dump())
+            if item and (hasattr(item, '__ft__') or isinstance(item, FT)):
+                fragments = [to_xml(item)]
+                if selector:
+                    yield SSE.merge_fragments(fragments, selector=selector, merge_mode=merge_mode)
+                else:
+                    yield SSE.merge_fragments(fragments, merge_mode=merge_mode)
+    else:  # Regular return or None
+        yield SSE.merge_signals(state.model_dump())
+        if result and (hasattr(result, '__ft__') or isinstance(result, FT)):
+            fragments = [to_xml(result)]
+            if selector:
+                yield SSE.merge_fragments(fragments, selector=selector, merge_mode=merge_mode)
+            else:
+                yield SSE.merge_fragments(fragments, merge_mode=merge_mode)
+
+return StreamingResponse(sse_stream(), media_type="text/event-stream", headers=SSE_HEADERS)
 ```
 
-### SSE Event Types
+### Key Features
 
-FastState supports different SSE event types for various use cases:
+1. **Automatic State Sync**: Always sends `merge_signals` with current state
+2. **Fragment Updates**: Conditionally sends `merge_fragments` for FastHTML components
+3. **Streaming Support**: Handles async generators for real-time streaming
+4. **Merge Modes**: Supports different Datastar merge modes (morph, inner, outer, append, prepend)
+5. **Selector Support**: Optional CSS selectors for targeted DOM updates
 
-#### 1. datastar-merge-signals
-Standard state updates that merge into client signals:
+### Integration with Datastar
 
-```python
-event: datastar-merge-signals
-data: {"count": 42, "message": "Updated"}
-```
+The SSE responses integrate seamlessly with Datastar on the client side:
 
-#### 2. datastar-merge-fragments  
-HTML fragment updates for dynamic UI changes:
-
-```python
-@event(selector="#status-panel", merge_mode="inner")
-def update_status(self, status: str):
-    self.status = status
-    # Return HTML fragment
-    return Div(f"Status: {status}", cls="status-panel")
-```
-
-#### 3. Custom Events
-Application-specific events for complex interactions:
-
-```python
-@event
-def complex_operation(self, data: dict):
-    result = self.process_data(data)
-    
-    # Return custom SSE event
-    return f"event: custom-notification\ndata: {json.dumps(result)}\n\n"
-```
-
-### Client-Side Integration
-
-The SSE responses automatically integrate with Datastar on the client:
-
-```html
-<!-- Datastar automatically handles these attributes -->
-<div data-signals='{"count": 0, "message": "Hello"}' id="updates">
-    <span data-text="$count"></span>
-    <span data-text="$message"></span>
-    
-    <!-- Events automatically trigger SSE endpoints -->
-    <button data-on-click="increment({amount: 1})">Increment</button>
-</div>
-```
-
-### Performance Optimizations
-
-#### 1. Minimal Diffs
-Only changed properties are sent to reduce bandwidth:
-
-```python
-# Instead of sending entire state:
-{"id": "123", "count": 42, "message": "Hello", "created_at": "2024-01-01"}
-
-# Only send changes:
-{"count": 42}  # Only count changed
-```
-
-#### 2. Efficient Serialization
-Uses `model_dump()` for fast JSON serialization with Pydantic optimizations.
-
-#### 3. Connection Reuse
-Single SSE connection per client handles all state updates, reducing overhead.
-
-#### 4. Automatic Cleanup
-Stale state instances are cleaned up based on TTL and session expiration.
-
-This completes the detailed documentation of all core FastState components. Each component is designed to work together seamlessly while maintaining clear separation of concerns and high performance.
+- **merge_signals**: Updates bound data attributes (`data-text="$count"`)
+- **merge_fragments**: Updates DOM fragments at specified selectors
+- **Real-time**: Live updates without page refreshes
+- **Bi-directional**: Client actions trigger server state changes, server changes update client UI

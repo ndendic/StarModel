@@ -4,6 +4,13 @@ from faststate import *
 
 rt = APIRouter()
 
+conf = StateConfig(
+    scope=StateScope.GLOBAL,
+    auto_persist=True,
+    persistence_backend="memory",
+    ttl=None
+)
+
 class ChatState(State):
     """Global chat state for real-time collaboration demo."""
     messages: list = []
@@ -11,10 +18,7 @@ class ChatState(State):
     last_message_id: int = 0
     
     # Auto-registration configuration
-    _scope: str = "global"
-    _auto_persist: bool = True
-    _persistence_backend: str = "memory"
-    _ttl: int = None
+    _config = conf
     
     @event(selector="#chat-messages",  merge_mode="append")
     def send_message(self, username: str, message: str):

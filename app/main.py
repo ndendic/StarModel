@@ -59,6 +59,7 @@ app, rt = fast_app(
 )
 
 add_routes(app)
+# Import and add state routes
 states_rt.to_app(app)
 
 if __name__ == "__main__":

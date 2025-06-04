@@ -11,10 +11,12 @@ class GlobalSettingsState(State):
     announcement: str = ""
     
     # Auto-registration configuration
-    _scope: str = "global"
-    _auto_persist: bool = True
-    _persistence_backend: str = "database"
-    _ttl: int = None
+    _config = StateConfig(
+        scope=StateScope.GLOBAL,
+        auto_persist=True,
+        persistence_backend="database",
+        ttl=None
+    )
     
     @event
     def toggle_maintenance(self):

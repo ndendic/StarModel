@@ -26,35 +26,42 @@ FastState is a reactive state management system that integrates FastHTML with Da
 ### Core Components
 
 1. **State Base Class** (`src/faststate/state.py`): 
-   - Inherits from SQLModel for data validation and optional persistence
+   - Inherits from Pydantic BaseModel for data validation and serialization
    - Provides simple `.get(req)` class method for explicit state resolution
-   - Automatically generates SSE endpoints for decorated methods
+   - **Auto-registration**: States automatically register themselves on first access using class-level configuration
+   - **Simplified Configuration**: Uses single `_config: StateConfig` field for all state configuration
+   - **Smart Defaults**: States without explicit config get sensible defaults (SESSION scope, no persistence)
+   - Automatically generates SSE endpoints for `@event` decorated methods
    - Handles state synchronization between server and client via Datastar signals
    - Integrated with SSE broadcasting for real-time multi-user updates
 
 2. **Event Decorator System**:
    - `@event` decorator automatically registers methods as HTTP endpoints
-   - Supports custom routing paths, HTTP methods, and Datastar selectors
+   - **URL Generator Methods**: Automatically creates static methods for Datastar attributes (e.g., `MyState.increment(1)` → `@get('/MyState/increment?amount=1')`)
+   - Supports custom routing paths, HTTP methods, and Datastar selectors with `merge_mode` parameter
+   - **Simplified Implementation**: Clean, streamlined architecture (~200 lines vs previous ~400 lines)
    - Generates SSE responses for real-time state updates
    - Handles parameter conversion from query strings and JSON payloads
-   - Automatically broadcasts state changes via SSE manager
+   - Always sends `merge_signals` for state sync, conditionally sends `merge_fragments` for FT components
 
-3. **State Registry** (`src/faststate/registry.py`):
-   - Global registry tracking active state instances with configurable scopes
+3. **State Registry** (`src/faststate/registry.py`):\
+   - **Auto-registration**: No manual `state_registry.register()` calls needed
+   - **StateScope Enum**: Direct enum usage (e.g., `StateScope.GLOBAL`) without string mappings
+   - **StateConfig Dataclass**: Centralized configuration with Pydantic validation
    - Supports SESSION, GLOBAL, USER, RECORD, and COMPONENT scopes
    - Session-based state retrieval and management via `state_registry.resolve_state_sync()`
    - Automatic state lifecycle management and caching
    - Integrated with persistence layer for automatic state loading/saving
    - Powers the simple `.get()` method for explicit state resolution
 
-4. **SSE Connection Manager** (`src/faststate/sse_manager.py`):
+4. **SSE Connection Manager** (`src/faststate/sse_manager.py`):\
    - Advanced SSE connection management with scope-aware broadcasting
    - Connection pooling and automatic cleanup for production reliability
    - Scope-specific broadcasting (global, session, user, record-based)
    - Health monitoring and connection statistics
    - Heartbeat mechanism and connection expiry handling
 
-5. **Persistence Layer** (`src/faststate/persistence.py`):
+5. **Persistence Layer** (`src/faststate/persistence.py`):\
    - Multi-backend persistence system (Memory, Redis, Database)
    - Automatic state loading and saving with configurable TTL
    - Pluggable backend architecture for different storage needs
@@ -64,8 +71,9 @@ FastState is a reactive state management system that integrates FastHTML with Da
 ### Key Patterns
 
 - **State classes** inherit from `State` and define reactive properties
+- **Auto-registration**: States automatically register on first `.get()` call using class-level configuration
 - **Simple state access** via `MyState.get(req)` method for explicit resolution
-- **Event methods** use `@event` decorator for automatic route registration
+- **Event methods** use `@event` decorator for automatic route registration with URL generators
 - **UI binding** uses Datastar `data-*` attributes for two-way binding
 - **State updates** automatically trigger SSE events to update client signals
 - **Session management** ties state instances to user sessions via registry
@@ -76,84 +84,103 @@ FastState is a reactive state management system that integrates FastHTML with Da
 ### Technology Stack
 
 - **FastHTML**: Server-side HTML generation and routing
-- **Datastar**: Client-side reactivity and SSE handling
-- **SQLModel**: Data validation and optional persistence
+- **Datastar**: Client-side reactivity and SSE handling (~15KB, uses SSE transport)
+- **Pydantic**: Data validation and serialization (BaseModel)
 - **MonsterUI**: UI component library for styling
 
 ### State Management Flow
 
-1. State class defines reactive properties and event handlers
-2. Route handlers use `MyState.get(req)` to access state instances
+1. State class defines reactive properties and event handlers with optional configuration
+2. Route handlers use `MyState.get(req)` to access state instances (auto-registers on first access)
 3. UI renders with `data-signals` containing initial state
-4. User interactions trigger events via Datastar `data-on-*` attributes
-5. Event handlers update state and return SSE responses
+4. User interactions trigger events via Datastar `data-on-*` attributes using generated URL methods
+5. Event handlers update state and return SSE responses with `merge_signals` and optional `merge_fragments`
 6. Client receives SSE updates and automatically updates bound UI elements
 
-### Example State Class Structure
+### State Configuration Examples
 
 ```python
+# Simple state with default configuration (SESSION scope, no persistence)
 class MyState(State):
-    # Reactive properties
     myInt: int = 0
     myStr: str = "Hello"
     
-    # Event handlers
     @event
     def increment(self, amount: int):
         self.myInt += amount
-    
-    @event("/custom-path", method="post")
-    def custom_event(self):
-        # Custom logic here
-        pass
 
-# Enhanced state registration with persistence and scope
-state_registry.register(
-    MyState,
-    StateConfig(
-        scope=StateScope.SESSION,
+# Advanced state with explicit configuration
+class CounterState(State):
+    count: int = 0
+    last_updated_by: str = ""
+    
+    # Auto-registration configuration
+    _config = StateConfig(
+        scope=StateScope.GLOBAL,
         auto_persist=True,
         persistence_backend="database",
-        ttl=3600  # 1 hour cache
+        ttl=3600
     )
-)
+    
+    @event(method="post")
+    def increment(self, amount: int = 1, user: str = "Anonymous"):
+        self.count += amount
+        self.last_updated_by = user
 
 # Simple route usage with .get() method
 @rt('/')
 def index(req: Request, sess: dict, auth: str = None):
-    my_state = MyState.get(req, sess, auth)  # Explicit, clean state access
-    return Titled("My Page", 
-        Div(data_signals=json.dumps(my_state.model_dump())),
-        my_state  # Renders state UI automatically
+    my_state = MyState.get(req, sess, auth)  # Auto-registers with defaults
+    return Main(
+        my_state,  # Uses __ft__ method for rendering with data-signals
+        Button("+1", data_on_click=MyState.increment(1)),  # Generated URL method
+        Button("Reset", data_on_click=MyState.reset())
     )
 ```
 
+### Configuration Options
+
+**StateScope enum values:**
+- `StateScope.SESSION` - Per user session (default)
+- `StateScope.GLOBAL` - Shared across all users  
+- `StateScope.USER` - Per authenticated user across sessions
+- `StateScope.RECORD` - Tied to specific database record IDs
+- `StateScope.COMPONENT` - Per component instance
+
+**StateConfig parameters:**
+- `scope: StateScope` - State scope (default: SESSION)
+- `auto_persist: bool` - Enable automatic persistence (default: False)
+- `persistence_backend: str` - Backend name ("memory", "database", "redis")
+- `ttl: int` - Time-to-live in seconds for cached states
+
 ### SSE and Streaming Patterns
 
-- All event responses are SSE streams
-- `_diff_and_events()` method compares before/after state
-- Support for async generators for streaming responses
-- Fragment merging for dynamic HTML updates
+- All event responses are SSE streams with proper headers
+- **Automatic State Sync**: Always sends `merge_signals` with current state
+- **Fragment Updates**: Conditionally sends `merge_fragments` for FastHTML components
+- **Streaming Support**: Async generators for real-time streaming responses
+- **Merge Modes**: Support for "morph", "inner", "outer", "append", "prepend" via `merge_mode` parameter
 
 ### Development Notes
 
+- **No Manual Registration**: States auto-register on first access using class-level `_config`
 - **State Access**: Use `MyState.get(req)` for simple, explicit state resolution
-- **State Registration**: Register states with `state_registry.register()` for scope and persistence configuration
-- **Session Management**: State instances are automatically tied to sessions via registry system
+- **Smart Defaults**: Classes without `_config` get SESSION scope with no persistence
+- **Session Management**: State instances automatically tied to sessions via registry system
 - **Parameter Conversion**: Event handlers handle string-to-type conversion from query params
-- **Error Handling**: Returns styled error components using MonsterUI styles
+- **Error Handling**: Graceful fallbacks and styled error components using MonsterUI
 - **Custom Routing**: Custom routing paths can override default `ClassName/method_name` pattern
-- **No Monkey Patching**: Clean architecture without FastHTML internal dependencies
-- **Demo Application**: `app/main.py` shows all state scopes and `.get()` method usage
+- **Clean Architecture**: No dependency injection complexity or monkey patching needed
+- **URL Generators**: Automatic static methods for Datastar attributes
 
 ### Integration with FastHTML
 
 - **Simple API**: Use `MyState.get(req)` in any FastHTML route handler
-- **State Registration**: Register states with `state_registry.register()` for configuration
+- **Auto-registration**: No need for manual `state_registry.register()` calls
 - **Event Routes**: `@event` decorated methods are auto-generated as FastHTML routes
 - **Backward Compatibility**: Works alongside existing FastHTML patterns
-- **No Complex Setup**: Just call `initialize_faststate()` during app startup
-- **Clean Architecture**: No dependency injection complexity or monkey patching needed
+- **Module Structure**: Organized in `app/pages/` directory with automatic route collection
+- **Clean Setup**: Minimal configuration required for full functionality
 
 ### Real-time Features
 
@@ -168,6 +195,7 @@ def index(req: Request, sess: dict, auth: str = None):
 - **Database Backend**: SQLAlchemy-based persistence for production use
 - **Redis Backend**: High-performance caching with TTL support (requires Redis server)
 - **Auto-persist**: Automatically save/load state changes with configurable TTL
+- **Backend Management**: Centralized `persistence_manager` for backend configuration
 
 ### Production Features
 
@@ -191,37 +219,83 @@ def index(req: Request, sess: dict, auth: str = None):
 
 ### Demo Application Features
 
-The demo app (`app/main.py`) showcases all FastState capabilities:
+The demo app showcases all FastState capabilities with modular page structure:
 
-- **Home (`/`)**: Basic state management with session scope
-- **Profile (`/profile`)**: User-scoped state with database persistence
-- **Admin (`/admin`)**: Global state management for system settings
-- **Products (`/product/{id}`)**: Record-scoped state tied to specific IDs
-- **Chat (`/chat`)**: Real-time collaborative chat with global state and SSE
-- **Counter (`/counter`)**: Global counter with persistence and multi-user sync
+- **Home (`/`)**: MyState with default SESSION scope configuration
+- **Counter (`/counter`)**: CounterState with GLOBAL scope and memory persistence 
+- **Admin (`/admin`)**: GlobalSettingsState with GLOBAL scope and database persistence
+- **Profile (`/profile`)**: UserProfileState with USER scope and database persistence
+- **Product (`/product/{id}`)**: ProductState with RECORD scope tied to specific IDs
+- **Chat (`/chat`)**: ChatState with GLOBAL scope for real-time collaboration
+- **Auth (`/login`, `/auth-demo`)**: Authentication handling and session management
 - **Status (`/status`)**: System monitoring dashboard with live statistics
+
+### Page Module Structure
+
+```
+app/pages/
+├── __init__.py
+├── index.py          # MyState (default config)
+├── counter.py         # CounterState (global, memory)
+├── admin.py           # GlobalSettingsState (global, database) 
+├── auth.py            # UserProfileState (user, database)
+├── product.py         # ProductState (record, database)
+└── chat.py            # ChatState (global, memory)
+```
 
 ## Important Development Notes
 
+- **Auto-Registration**: States register automatically on first `.get()` call - no manual setup needed
+- **State Configuration**: Use `_config = StateConfig(...)` for advanced states, omit for simple ones
 - **State Access Pattern**: Use `MyState.get(req, sess, auth)` in route handlers for explicit state resolution
 - **State Lifecycle**: States are automatically cached per scope (session, global, user, record)
 - **Database File**: Demo app uses SQLite database (`app/faststate_demo.db`) for persistence testing
 - **Authentication**: Handled via FastHTML beforeware middleware system
-- **Route Integration**: Legacy routes in `app/routes.py` are merged with auto-generated state routes
-- **No Dependency Injection**: Clean, explicit API without complex middleware or patching
+- **Route Collection**: Automatic route discovery from `app/pages/` modules
+- **No Complex Setup**: Just import and use - configuration happens automatically
 - **Backward Compatibility**: Existing FastHTML patterns work alongside FastState enhancements
 
 ## Simple State Access API
 
 ```python
-# Basic usage in any route
+# Basic usage in any route (auto-registers with defaults)
 my_state = MyState.get(req)
 
 # With explicit session and auth
 my_state = MyState.get(req, sess, auth)
 
 # Multiple states in one route
-user_profile = UserProfileState.get(req)
-settings = GlobalSettingsState.get(req)
-product = ProductState.get(req)  # Uses record_id from URL params
+user_profile = UserProfileState.get(req)  # USER scope
+settings = GlobalSettingsState.get(req)   # GLOBAL scope  
+product = ProductState.get(req)            # RECORD scope (uses record_id from URL)
+
+# Generated URL methods for Datastar
+Button("+1", data_on_click=MyState.increment(1))       # → @get('/MyState/increment?amount=1')
+Button("Save", data_on_click=ProductState.save())      # → @get('/ProductState/save')
+Button("Delete", data_on_click=ProductState.delete(confirm=True))  # → @get('/ProductState/delete?confirm=true')
+```
+
+## Configuration Examples
+
+```python
+# Default configuration (SESSION scope, no persistence)
+class SimpleState(State):
+    value: int = 0
+    # No _config needed - gets defaults automatically
+
+# Explicit configuration
+class AdvancedState(State):
+    data: dict = {}
+    
+    _config = StateConfig(
+        scope=StateScope.GLOBAL,
+        auto_persist=True,
+        persistence_backend="database", 
+        ttl=3600  # 1 hour
+    )
+
+# Configuration variations
+_config = StateConfig(scope=StateScope.USER, auto_persist=True, persistence_backend="redis")
+_config = StateConfig(scope=StateScope.RECORD, persistence_backend="memory", ttl=1800)
+_config = StateConfig(scope=StateScope.COMPONENT, auto_persist=False)
 ```

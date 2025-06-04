@@ -6,15 +6,15 @@ different state scopes and configurations for automatic dependency injection.
 """
 
 from typing import Type, Dict, Any, Optional, get_origin, get_args, TYPE_CHECKING
-from enum import Enum
-from dataclasses import dataclass, field
+from enum import StrEnum
+from pydantic import BaseModel
 from fasthtml.common import Request
 
 if TYPE_CHECKING:
     from .state import State
 
 
-class StateScope(Enum):
+class StateScope(StrEnum):
     """Enumeration of different state scopes supported by FastState."""
     GLOBAL = "global"        # Shared across all users
     SESSION = "session"      # Per user session (current default)
@@ -23,8 +23,7 @@ class StateScope(Enum):
     RECORD = "record"       # Tied to specific database record
 
 
-@dataclass
-class StateConfig:
+class StateConfig(BaseModel):
     """Configuration for a state class defining its scope and persistence."""
     scope: StateScope = StateScope.SESSION
     ttl: Optional[int] = None  # Time to live in seconds
@@ -32,7 +31,7 @@ class StateConfig:
     persistence_backend: Optional[str] = None  # Name of persistence backend to use
 
 
-class FastStateRegistry:
+class StateRegistry:
     """
     Registry for state types that can be automatically injected via FastHTML's DI system.
     
@@ -95,15 +94,15 @@ class FastStateRegistry:
         # Generate state key
         state_key = self._generate_state_key(state_cls, config, req, sess, auth)                
         
+        # Return cached instance if available
+        if state_key in self._state_instances:
+            return self._state_instances[state_key]
+        
         # Try to load from persistence if enabled (synchronous version)
         state = None
         if config.auto_persist and config.persistence_backend:
             state = self._load_from_persistence_sync(state_cls, state_key, config)
 
-        # Return cached instance if available
-        if state_key in self._state_instances:
-            return self._state_instances[state_key]
-        
         # Create new instance if not found in persistence
         if state is None:
             state = self._create_state_instance(state_cls, config, req, sess, auth)
@@ -392,4 +391,4 @@ class FastStateRegistry:
 
 
 # Global registry instance
-state_registry = FastStateRegistry()
+state_registry = StateRegistry()
