@@ -258,15 +258,12 @@ class State(BaseModel):
     # Configuration (excluded from model_dump by Pydantic underscore convention)
     _config = None  # Will use default StateConfig if not set
     
-    
-
     def LiveDiv(self, heartbeat: float = 0):
         return Div({"data-on-load": self.live(heartbeat)}, id=f"{self.__class__.__name__}")
 
     def SignalsDiv(self):
         return Div({"data-signals": json.dumps(self.model_dump())}, id=f"{self.__class__.__name__}"),
 
-    
     @event
     async def live(self, heartbeat: float = 0):
         while True:
@@ -275,6 +272,9 @@ class State(BaseModel):
 
     @event
     async def sync(self, datastar):    
+        for f in self.__class__.model_fields.keys():
+            if f in datastar:
+                setattr(self, f, datastar[f])
         return self.model_dump()
     
     def __ft__(self):
@@ -285,16 +285,13 @@ class State(BaseModel):
         """Get the effective StateConfig for this class."""
         from .registry import StateConfig
         
-        # Check if this class (not parent) defines _config
         config_attr = getattr(cls, '_config', None)
         
-        # Check if this is a ModelPrivateAttr with a default, or a direct value
         if hasattr(config_attr, 'default') and config_attr.default is not None:
             config = config_attr.default
         elif config_attr is not None and not hasattr(config_attr, 'default'):
             config = config_attr
         else:
-            # Check if this class is the base State class or a subclass without explicit config
             if cls.__name__ == 'State' or '_config' not in cls.__private_attributes__:
                 config = StateConfig()
             else:
@@ -305,22 +302,15 @@ class State(BaseModel):
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        # Store original methods before we replace them with URL generators
         cls._original_methods = {}
-        
-        # First, collect all event-decorated methods
         event_methods = []
         for name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
             if hasattr(method, '_event_config'):
-                # Store original method
                 cls._original_methods[name] = method
                 event_methods.append((name, method))
         
-        # Then register routes and add URL generators
         for name, method in event_methods:
-            # Register the route using original method
             _register_event_route(cls, method, method._event_config)
-            # Add URL generator static method
             _add_url_generator(cls, name, method, method._event_config)
     
 
