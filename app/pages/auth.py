@@ -19,10 +19,12 @@ class UserProfileState(State):
         ttl=3600
     )
     
-    def __init__(self, request=None, auth=None, **kwargs):
-        super().__init__(request=request, **kwargs)
+    @classmethod
+    def _generate_state_id(cls, req, **kwargs):
+        # Generate user-specific ID from auth or session
+        auth = kwargs.get('auth') or (req.scope.get('auth') if req else None)
         user_id = auth or 'anonymous'
-        self.id = f"profile_user_{user_id}"
+        return f"profile_user_{user_id}"
     
     @event(selector="#profile-updates")
     def update_profile(self, name: str, email: str):

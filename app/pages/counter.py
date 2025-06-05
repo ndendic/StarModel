@@ -12,14 +12,16 @@ config = StateConfig(
 
 class CounterState(State): 
     """Enhanced counter with persistence and real-time sync."""
-    id: str = "global_counter"
     count: int = 0
     last_updated_by: str = ""
     update_count: int = 0
+    
     # Auto-registration configuration
     _config = config
     
-    # Custom ID for global access
+    @classmethod
+    def _generate_state_id(cls, req, **kwargs):
+        return "global_counter"  # Fixed ID for global access
     
     @event(method="post")
     async def increment(self, amount: int = 1, user: str = "Anonymous"):      

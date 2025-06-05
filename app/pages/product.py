@@ -19,10 +19,11 @@ class ProductState(State):
         ttl=7200
     )
     
-    def __init__(self, request=None, **kwargs):
-        super().__init__(request=request, **kwargs)
-        product_id = request.path_params.get('id', 'default') if request else 'default'
-        self.id = f"product_{product_id}"
+    @classmethod
+    def _generate_state_id(cls, req, **kwargs):
+        # Generate product-specific ID from URL path
+        product_id = req.path_params.get('id', 'default') if req else 'default'
+        return f"product_{product_id}"
     
     @event
     def update_product(self, name: str, price: float, description: str):

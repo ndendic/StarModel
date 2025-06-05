@@ -3,7 +3,7 @@ import asyncio
 import json
 import uuid
 import urllib.parse
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from datastar_py import SSE_HEADERS
 from datastar_py import ServerSentEventGenerator as SSE
@@ -15,6 +15,9 @@ from .persistence import StatePersistenceBackend, memory_persistence
 datastar_script = Script(src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.0-beta.11/bundles/datastar.js", type="module")
 
 rt = APIRouter()
+
+# Global state cache to ensure same instance for same ID
+_state_cache: Dict[str, 'State'] = {}
 
 class DatastarPayload:
     """Represents Datastar payload data that can be injected into event methods."""
@@ -417,30 +420,65 @@ class State(BaseModel):
 
     @classmethod
     def get(cls, req: Request, **kwargs) -> 'State':
-        """Load existing state or create new instance."""
-        # Create temporary instance to get ID (user's custom logic)
-        temp_instance = cls(req,**kwargs)
-        
+        """Get or create state instance with consistent ID."""
+        global _state_cache
         config = cls._get_config()
+        
+        # Generate deterministic state ID using the class's custom logic
+        state_id = cls._generate_state_id(req, **kwargs)
+        
+        # Check cache first
+        cache_key = f"{cls.__name__}:{state_id}"
+        if cache_key in _state_cache:
+            cached_state = _state_cache[cache_key]
+            # Update with any client-side changes if applicable
+            if config.scope.value.startswith("client_"):
+                datastar = datastar_from_queryParams(req)
+                if datastar:
+                    for f in cls.model_fields.keys():
+                        if f in datastar:
+                            setattr(cached_state, f, datastar[f])
+            return cached_state
+        
+        # Create new instance with the determined ID
+        instance_kwargs = {**kwargs, 'id': state_id}
+        
         if config.scope.value.startswith("client_"):
+            # Client-side: handle datastar loading
+            state = cls(req, **instance_kwargs)
             datastar = datastar_from_queryParams(req)
             if datastar:
                 for f in cls.model_fields.keys():
                     if f in datastar:
-                        setattr(temp_instance, f, datastar[f])
-            return temp_instance  # Datastar handles loading
-        
-        # Try to load from backend
-        backend = config.persistence_backend
-        
-        state_data = None
-        if hasattr(backend, 'load_state_sync'):
-            state_data = backend.load_state_sync(temp_instance.id)
-        
-        if state_data:
-            return cls(req,**state_data)
+                        setattr(state, f, datastar[f])
         else:
-            # Auto-persist new instance if configured
-            if config.auto_persist:
-                temp_instance.save()
-            return temp_instance
+            # Server-side: try to load from backend
+            backend = config.persistence_backend
+            state_data = None
+            if hasattr(backend, 'load_state_sync'):
+                state_data = backend.load_state_sync(state_id)
+            
+            if state_data:
+                # Merge loaded data with instance kwargs, prioritizing loaded data
+                merged_kwargs = {**instance_kwargs, **state_data}
+                state = cls(req, **merged_kwargs)
+            else:
+                # Create new instance
+                state = cls(req, **instance_kwargs)
+                # Auto-persist new instance if configured
+                if config.auto_persist:
+                    state.save()
+        
+        # Cache the instance
+        _state_cache[cache_key] = state
+        return state
+    
+    @classmethod
+    def _generate_state_id(cls, req: Request, **kwargs) -> str:
+        """Generate deterministic state ID. Override in subclasses for custom logic."""
+        # Default: use class name + session-based ID
+        if req and hasattr(req, 'cookies'):
+            session_id = req.cookies.get('session_', 'default')
+        else:
+            session_id = 'default'
+        return f"{cls.__name__.lower()}_{session_id}"

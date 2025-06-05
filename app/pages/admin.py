@@ -1,6 +1,7 @@
 from fasthtml.common import *
 from monsterui.all import *
 from faststate import *
+import json
 
 rt = APIRouter()
 
@@ -18,8 +19,9 @@ class GlobalSettingsState(State):
         ttl=None
     )
     
-    # Custom ID for global access
-    id: str = "global_settings"
+    @classmethod
+    def _generate_state_id(cls, req, **kwargs):
+        return "global_settings"  # Fixed ID for global access
     
     @event
     def toggle_maintenance(self):
@@ -114,8 +116,9 @@ def system_status(req: Request, sess: dict, auth: str = None):
     """
     # Get SSE connection stats
     
-    # Get state registry stats
-    cached_states = len(state_registry.get_cached_instances())
+    # Get state cache stats
+    from faststate.state import _state_cache
+    cached_states = len(_state_cache)
     
     return Titled("System Status",
         Main(
@@ -124,18 +127,16 @@ def system_status(req: Request, sess: dict, auth: str = None):
                 P("Real-time system monitoring and statistics.", 
                   cls="text-gray-600 mb-6"),
                                                 
-                # State Registry Stats
+                # State Cache Stats
                 Div(
-                    H2("State Registry Statistics", cls="text-xl font-bold mb-4"),
+                    H2("State Cache Statistics", cls="text-xl font-bold mb-4"),
                     Div(
-                        Div(f"Registered State Types: {len(state_registry._state_configs)}", cls="mb-2"),
                         Div(f"Cached State Instances: {cached_states}", cls="mb-2"),
-                        Div("Registered Types:", cls="mb-2 font-bold"),
+                        Div("Cache Keys:", cls="mb-2 font-bold"),
                         *[
-                            Div(f"  • {state_cls.__name__} ({config.scope.value} scope, persist: {config.auto_persist})", 
-                                cls="ml-4 text-sm text-gray-600")
-                            for state_cls, config in state_registry._state_configs.items()
-                        ],
+                            Div(f"  • {cache_key}", cls="ml-4 text-sm text-gray-600")
+                            for cache_key in _state_cache.keys()
+                        ] if _state_cache else [Div("  • No cached states", cls="ml-4 text-sm text-gray-600")],
                         cls="bg-green-50 p-4 rounded mb-6"
                     ),
                     cls="mb-6"

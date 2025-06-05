@@ -20,8 +20,9 @@ class ChatState(State):
     # Auto-registration configuration
     _config = conf
     
-    # Fixed ID for global access
-    id: str = "global_chat"
+    @classmethod
+    def _generate_state_id(cls, req, **kwargs):
+        return "global_chat"  # Fixed ID for global access
     
     @event(selector="#chat-messages",  merge_mode="append")
     def send_message(self, username: str, message: str):
