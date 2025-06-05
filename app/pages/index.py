@@ -42,7 +42,7 @@ def index(req: Request, sess: dict, auth: str = None):
         auth = sess.get('auth', None)
     
     # Simple, explicit state resolution
-    my_state = MyState.get(req, sess, auth)
+    my_state = MyState.get(req)
     return Main(
         # Welcome message
         Div(

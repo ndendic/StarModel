@@ -13,11 +13,16 @@ class ProductState(State):
     
     # Auto-registration configuration
     _config = StateConfig(
-        scope=StateScope.RECORD,
+        scope=StateScope.SERVER_MEMORY,
         auto_persist=True,
-        persistence_backend="database",
+        persistence_backend=memory_persistence,
         ttl=7200
     )
+    
+    def __init__(self, request=None, **kwargs):
+        super().__init__(request=request, **kwargs)
+        product_id = request.path_params.get('id', 'default') if request else 'default'
+        self.id = f"product_{product_id}"
     
     @event
     def update_product(self, name: str, price: float, description: str):
@@ -39,7 +44,7 @@ def product_detail(req: Request, sess: dict, record_id: int, auth: str = None):
     Demonstrates state tied to specific database records.
     """
     # State automatically injected by FastHTML integration
-    product = ProductState.get(req, sess, auth)
+    product = ProductState.get(req)
 
     # Initialize product data if empty (simulating database load)
     if not product.name:

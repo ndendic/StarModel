@@ -12,11 +12,14 @@ class GlobalSettingsState(State):
     
     # Auto-registration configuration
     _config = StateConfig(
-        scope=StateScope.GLOBAL,
+        scope=StateScope.SERVER_MEMORY,
         auto_persist=True,
-        persistence_backend="database",
+        persistence_backend=memory_persistence,
         ttl=None
     )
+    
+    # Custom ID for global access
+    id: str = "global_settings"
     
     @event
     def toggle_maintenance(self):
@@ -42,7 +45,7 @@ def admin_panel(req: Request, sess: dict, auth: str = None):
     Uses simple .get() method for state resolution.
     """
     # Simple, explicit state resolution
-    settings = GlobalSettingsState.get(req, sess, auth)
+    settings = GlobalSettingsState.get(req)
     return Titled("Admin Panel",
         Main(
             Div(
@@ -138,21 +141,6 @@ def system_status(req: Request, sess: dict, auth: str = None):
                     cls="mb-6"
                 ),
                 
-                # Persistence Backend Status
-                Div(
-                    H2("Persistence Backends", cls="text-xl font-bold mb-4"),
-                    Div(
-                        Div(f"Available Backends: {len(persistence_manager.backends)}", cls="mb-2"),
-                        Div("Backend Types:", cls="mb-2 font-bold"),
-                        *[
-                            Div(f"  • {name} ({type(backend).__name__})", 
-                                cls="ml-4 text-sm text-gray-600")
-                            for name, backend in persistence_manager.backends.items()
-                        ],
-                        cls="bg-purple-50 p-4 rounded mb-6"
-                    ),
-                    cls="mb-6"
-                ),
                 
                 # System Information
                 Div(
@@ -160,7 +148,7 @@ def system_status(req: Request, sess: dict, auth: str = None):
                     Div(
                         Div(f"Session ID: {req.cookies.get('session_', 'auto-generated')[:100]}", cls="mb-2 font-mono text-sm"),
                         Div(f"Authentication: {auth or 'Not authenticated'}", cls="mb-2 font-mono text-sm"),
-                        Div(f"FastState Version: Enhanced with SSE + Persistence", cls="mb-2 font-mono text-sm"),
+                        Div("FastState Version: Enhanced with SSE", cls="mb-2 font-mono text-sm"),
                         cls="bg-gray-50 p-4 rounded mb-6"
                     ),
                     cls="mb-6"

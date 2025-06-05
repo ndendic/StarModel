@@ -5,19 +5,21 @@ import asyncio
 
 rt = APIRouter()
 
-class CounterState(State):
+config = StateConfig(
+    scope=StateScope.CLIENT_LOCAL,
+    auto_persist=True,
+)
+
+class CounterState(State): 
     """Enhanced counter with persistence and real-time sync."""
+    id: str = "global_counter"
     count: int = 0
     last_updated_by: str = ""
     update_count: int = 0
-    
     # Auto-registration configuration
-    _config = StateConfig(
-        scope=StateScope.GLOBAL,
-        auto_persist=True,
-        persistence_backend="memory",
-        ttl=30
-    )
+    _config = config
+    
+    # Custom ID for global access
     
     @event(method="post")
     async def increment(self, amount: int = 1, user: str = "Anonymous"):      
@@ -54,7 +56,7 @@ def global_counter(req: Request, sess: dict, auth: str = None):
     """
     Global counter demo with persistence and real-time synchronization.
     """
-    counter = CounterState.get(req, sess, auth)
+    counter = CounterState.get(req)
     username = auth or sess.get('auth', 'Anonymous')
     
     return Main(

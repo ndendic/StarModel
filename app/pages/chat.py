@@ -5,9 +5,9 @@ from faststate import *
 rt = APIRouter()
 
 conf = StateConfig(
-    scope=StateScope.GLOBAL,
+    scope=StateScope.SERVER_MEMORY,
     auto_persist=True,
-    persistence_backend="memory",
+    persistence_backend=memory_persistence,
     ttl=None
 )
 
@@ -19,6 +19,9 @@ class ChatState(State):
     
     # Auto-registration configuration
     _config = conf
+    
+    # Fixed ID for global access
+    id: str = "global_chat"
     
     @event(selector="#chat-messages",  merge_mode="append")
     def send_message(self, username: str, message: str):
@@ -65,7 +68,7 @@ def realtime_chat(req: Request, sess: dict, auth: str = None):
     """
     Real-time chat demo showcasing global state and SSE broadcasting.
     """
-    chat = ChatState.get(req, sess, auth)
+    chat = ChatState.get(req)
     username = auth or sess.get('auth', 'Anonymous')
     
     return Titled("Real-time Chat",

@@ -13,11 +13,16 @@ class UserProfileState(State):
     
     # Auto-registration configuration
     _config = StateConfig(
-        scope=StateScope.USER,
+        scope=StateScope.SERVER_MEMORY,
         auto_persist=True,
-        persistence_backend="database",
+        persistence_backend=memory_persistence,
         ttl=3600
     )
+    
+    def __init__(self, request=None, auth=None, **kwargs):
+        super().__init__(request=request, **kwargs)
+        user_id = auth or 'anonymous'
+        self.id = f"profile_user_{user_id}"
     
     @event(selector="#profile-updates")
     def update_profile(self, name: str, email: str):
@@ -108,7 +113,7 @@ def profile(req: Request, sess: dict, auth: str = None):
     Uses simple .get() method for state resolution.
     """
     # Simple, explicit state resolution
-    profile = UserProfileState.get(req, sess, auth)
+    profile = UserProfileState.get(req)
     
     return Titled("User Profile",
         Main(
