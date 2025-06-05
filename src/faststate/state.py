@@ -48,6 +48,20 @@ class DatastarPayload:
         """Access the raw data dictionary."""
         return self._data
 
+def datastar_from_queryParams(request: Request) -> DatastarPayload:
+    """Synchronous version - Extract Datastar payload from request (query params only)."""
+    datastar_payload = None
+    
+    try:
+        # Only try getting datastar from query params in sync version
+        datastar_json_str = request.query_params.get('datastar')
+        if datastar_json_str:
+            datastar_payload = json.loads(datastar_json_str)
+    except Exception:
+        datastar_payload = None
+    
+    return DatastarPayload(datastar_payload)
+
 async def _extract_datastar_payload(request: Request) -> DatastarPayload:
     """Extract Datastar payload from request."""
     datastar_payload = None
@@ -72,21 +86,6 @@ async def _extract_datastar_payload(request: Request) -> DatastarPayload:
         datastar_payload = None
     
     return DatastarPayload(datastar_payload)
-
-def datastar_from_queryParams(request: Request) -> DatastarPayload:
-    """Synchronous version - Extract Datastar payload from request (query params only)."""
-    datastar_payload = None
-    
-    try:
-        # Only try getting datastar from query params in sync version
-        datastar_json_str = request.query_params.get('datastar')
-        if datastar_json_str:
-            datastar_payload = json.loads(datastar_json_str)
-    except Exception:
-        datastar_payload = None
-    
-    return DatastarPayload(datastar_payload)
-
 
 async def _find_p_with_datastar(req: Request, arg: str, p, datastar_payload: DatastarPayload):
     """Extended version of FastHTML's _find_p that also supports Datastar parameters."""
@@ -140,6 +139,9 @@ def _register_event_route(state_cls, method, config):
     methods = [config.get('method', 'get').upper()]
     selector = config.get('selector')
     merge_mode = config.get('merge_mode', 'morph')
+    name = config.get('name')
+    include_in_schema = config.get('include_in_schema', True)
+    body_wrap = config.get('body_wrap')
     
     # Get method signature for FastHTML parameter injection
     sig = inspect.signature(method)
@@ -198,7 +200,7 @@ def _register_event_route(state_cls, method, config):
         return StreamingResponse(sse_stream(), media_type="text/event-stream", headers=SSE_HEADERS)
     
     # Register with APIRouter following FastHTML pattern
-    rt(path, methods=methods)(event_handler)
+    rt(path, methods=methods, name=name, include_in_schema=include_in_schema, body_wrap=body_wrap)(event_handler)
 
 def _add_url_generator(state_cls, method_name, method, config):
     """Add URL generator static method to the state class with FastHTML compatibility."""
@@ -253,7 +255,7 @@ def _add_url_generator(state_cls, method_name, method, config):
     # Also set it as a class attribute so it can be accessed as ClassName.method_name()
     setattr(state_cls, method_name, url_generator_method)
 
-def event(path=None, *, method="get", selector=None, merge_mode="morph"):
+def event(path=None, *, method="get", selector=None, merge_mode="morph", name=None, include_in_schema=True, body_wrap=None):
     """
     Simplified event decorator for State methods.
     
@@ -269,13 +271,16 @@ def event(path=None, *, method="get", selector=None, merge_mode="morph"):
             'path': path,
             'method': method,
             'selector': selector,
-            'merge_mode': merge_mode
+            'merge_mode': merge_mode,
+            'name': name,
+            'include_in_schema': include_in_schema,
+            'body_wrap': body_wrap
         }
         return func
     
     if callable(path):  # Used as @event without parentheses
         func = path
-        func._event_config = {'path': None, 'method': 'get', 'selector': None, 'merge_mode': 'morph'}
+        func._event_config = {'path': None, 'method': 'get', 'selector': None, 'merge_mode': 'morph', 'name': None, 'include_in_schema': True, 'body_wrap': None}
         return func
     
     return decorator
@@ -414,10 +419,10 @@ class State(BaseModel):
         super().__init_subclass__(**kwargs)
         cls._original_methods = {}
         event_methods = []
-        for name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
-            if hasattr(method, '_event_config'):
-                cls._original_methods[name] = method
-                event_methods.append((name, method))
+        for name, func in inspect.getmembers(cls, predicate=inspect.isfunction):
+            if hasattr(func, '_event_config'):
+                cls._original_methods[name] = func
+                event_methods.append((name, func))
         
         for name, method in event_methods:
             _register_event_route(cls, method, method._event_config)
