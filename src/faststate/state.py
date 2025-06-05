@@ -100,11 +100,9 @@ async def _find_p_with_datastar(req: Request, arg: str, p, datastar_payload: Dat
     if arg.lower() == 'datastar' and anno is inspect.Parameter.empty:
         return datastar_payload
     
-    # Use FastHTML's original _find_p function
-    result = await _find_p(req, arg, p)
     
     # If FastHTML didn't find the parameter, try Datastar payload
-    if result is None and datastar_payload and arg in datastar_payload:
+    if datastar_payload and arg in datastar_payload:
         value = datastar_payload[arg]
         # Apply type conversion if needed
         if anno != inspect.Parameter.empty:
@@ -115,6 +113,11 @@ async def _find_p_with_datastar(req: Request, arg: str, p, datastar_payload: Dat
                 return value
         return value
     
+    try:
+        result = await _find_p(req, arg, p) # Use FastHTML's original _find_p function
+    except Exception:
+        result = None
+
     return result
 
 async def _wrap_req_with_datastar(req: Request, params: Dict[str, inspect.Parameter]):
@@ -168,7 +171,7 @@ def _register_event_route(state_cls, method, config):
         # Handle async generators and regular returns
         async def sse_stream():            
             # Always send current state signals first
-            yield SSE.merge_signals(state.model_dump())
+            yield SSE.merge_signals(state.signals)
             
             if hasattr(result, '__aiter__'):  # Async generator
                 async for item in result:
@@ -177,7 +180,7 @@ def _register_event_route(state_cls, method, config):
                         state.save()
                     
                     # Send updated state after each yield
-                    yield SSE.merge_signals(state.model_dump())
+                    yield SSE.merge_signals(state.signals)
                     if item and (hasattr(item, '__ft__') or isinstance(item, FT)):  # FT component
                         fragments = [to_xml(item)]
                         if selector:
@@ -313,7 +316,10 @@ class State(BaseModel):
                 self.id = str(uuid.uuid4())
         
     # Configuration (excluded from model_dump by Pydantic underscore convention)
-    
+    @property
+    def signals(self) -> Dict[str, Any]:
+        return self.model_dump()
+
     def LiveDiv(self, heartbeat: float = 0):
         return Div({"data-on-load": self.live(heartbeat)}, id=f"{self.__class__.__name__}")
 
@@ -321,7 +327,7 @@ class State(BaseModel):
     @event
     async def live(self, heartbeat: float = 0):
         while True:
-            yield self.model_dump()
+            yield self.signals
             await asyncio.sleep(heartbeat)
 
     @event
@@ -329,12 +335,12 @@ class State(BaseModel):
         for f in self.__class__.model_fields.keys():
             if f in datastar:
                 setattr(self, f, datastar[f])
-        return self.model_dump()
+        return self.signals
     
     def __ft__(self):
         """Render with appropriate data-persist attributes for client-side scopes."""
         config = self._get_config()
-        signals = json.dumps(self.model_dump())
+        signals = json.dumps(self.signals)
         
         if config.scope == StateScope.CLIENT_SESSION:
             return Div({"data-signals": signals,
@@ -383,7 +389,7 @@ class State(BaseModel):
         
         if config.auto_persist:
             backend: StatePersistenceBackend = self._get_backend()
-            return backend.save_state_sync(self.id, self.model_dump(), config.ttl)
+            return backend.save_state_sync(self.id, self.signals, config.ttl)
         return True
     
     def delete(self) -> bool:
@@ -481,4 +487,4 @@ class State(BaseModel):
             session_id = req.cookies.get('session_', 'default')
         else:
             session_id = 'default'
-        return f"{cls.__name__.lower()}_{session_id}"
+        return f"{cls.__name__.lower()}_{session_id[:100]}"

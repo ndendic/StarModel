@@ -6,8 +6,10 @@ import asyncio
 rt = APIRouter()
 
 config = StateConfig(
-    scope=StateScope.CLIENT_LOCAL,
+    scope=StateScope.SERVER_MEMORY,
     auto_persist=True,
+    persistence_backend = memory_persistence,
+    ttl=10
 )
 
 class CounterState(State): 

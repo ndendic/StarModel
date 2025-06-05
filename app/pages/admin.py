@@ -21,7 +21,7 @@ class GlobalSettingsState(State):
     
     @classmethod
     def _generate_state_id(cls, req, **kwargs):
-        return "global_settings"  # Fixed ID for global access
+        return "global_settings" 
     
     @event
     def toggle_maintenance(self):
@@ -30,8 +30,8 @@ class GlobalSettingsState(State):
         return Div(f"Maintenance mode {status}!", cls="text-orange-600 font-bold")
     
     @event
-    def set_announcement(self, message: str):
-        self.announcement = message
+    def set_announcement(self, announcement: str):
+        self.announcement = announcement
         return Div("Announcement updated!", cls="text-blue-600 font-bold")
     
     @event
@@ -41,7 +41,7 @@ class GlobalSettingsState(State):
 
 
 @rt('/admin')
-def admin_panel(req: Request, sess: dict, auth: str = None):
+def admin_panel(req: Request):
     """
     Admin panel with global state.
     Uses simple .get() method for state resolution.
@@ -54,7 +54,7 @@ def admin_panel(req: Request, sess: dict, auth: str = None):
                 H1("⚙️ Admin Panel", cls="text-3xl font-bold mb-6"),
                 
                 # Global state display
-                Div(data_signals=json.dumps(settings.model_dump()), id="admin-updates"),
+                Div(data_signals=json.dumps(settings.signals), id="admin-updates"),
                 
                 # System status
                 Div(
@@ -63,7 +63,7 @@ def admin_panel(req: Request, sess: dict, auth: str = None):
                         Div("Theme: ", Span(data_text="$theme"), cls="mb-2"),
                         Div("Maintenance Mode: ", Span(data_text="$maintenance_mode"), cls="mb-2"),
                         Div("Announcement: ", Span(data_text="$announcement"), cls="mb-2"),
-                        cls="bg-gray-100 p-4 rounded mb-6"
+                        cls="bg-secondary-foreground p-4 rounded mb-6"
                     ),
                     cls="mb-6"
                 ),
@@ -75,16 +75,17 @@ def admin_panel(req: Request, sess: dict, auth: str = None):
                     Div(
                         Button("Toggle Maintenance Mode", 
                                data_on_click=GlobalSettingsState.toggle_maintenance(),
-                               cls="bg-orange-500 text-white px-4 py-2 rounded mr-2 mb-2"),
+                               cls=ButtonT.primary+"px-4 py-2 rounded mr-2 mb-2"),
                         cls="mb-4"
                     ),
                     
                     Div(
                         Input(placeholder="System announcement...", name="message",
+                              data_bind="$announcement",
                               cls="border rounded px-3 py-2 mr-2 flex-1"),
                         Button("Set Announcement", 
                                data_on_click=GlobalSettingsState.set_announcement(),
-                               cls="bg-blue-500 text-white px-4 py-2 rounded"),
+                               cls=ButtonT.secondary+"px-4 py-2 rounded"),
                         cls="flex mb-4"
                     ),
                     
@@ -110,7 +111,7 @@ def admin_panel(req: Request, sess: dict, auth: str = None):
     )
 
 @rt('/status')
-def system_status(req: Request, sess: dict, auth: str = None):
+def system_status(req: Request):
     """
     System status page showing SSE connections, persistence stats, and more.
     """
