@@ -304,31 +304,20 @@ class StateConfig(BaseModel):
 
 
 class State(BaseModel):
-    _config = None  # Will use default StateConfig if not set
+    """Base class for all state classes."""
+    model_config = {"arbitrary_types_allowed": True}
+
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
-    
-    def __init__(self, request: Request = None, **kwargs):
-        super().__init__(**kwargs)
-        # Only override ID if not already set by class default or kwargs
-        if 'id' not in kwargs and not hasattr(self, 'id'):
-            if request:
-                datastar = datastar_from_queryParams(request)
-                if 'id' in datastar:
-                    self.id = datastar['id']
-                else:
-                    self.id = str(uuid.uuid4())
-            else:
-                self.id = str(uuid.uuid4())
-        
-    # Configuration (excluded from model_dump by Pydantic underscore convention)
+    _config = None  # TODO to be removed. Will use default StateConfig if not set
+    _scope: StateScope = StateScope.SERVER_MEMORY
+    _auto_persist: bool = True
+    _persistence_backend: StatePersistenceBackend = memory_persistence
+    _ttl: Optional[int] = None  # Time to live in seconds
+
     @property
     def signals(self) -> Dict[str, Any]:
         return self.model_dump()
-
-    def LiveDiv(self, heartbeat: float = 0):
-        return Div({"data-on-load": self.live(heartbeat)}, id=f"{self.__class__.__name__}")
-
-
+    
     @event
     async def live(self, heartbeat: float = 0):
         while True:
@@ -342,50 +331,10 @@ class State(BaseModel):
                 setattr(self, f, datastar[f])
         return self.signals
     
-    def __ft__(self):
-        """Render with appropriate data-persist attributes for client-side scopes."""
-        config = self._get_config()
-        signals = json.dumps(self.signals)
-        
-        if config.scope == StateScope.CLIENT_SESSION:
-            return Div({"data-signals": signals,
-                        "data-on-online__window": self.sync(),
-                        "data-on-load": self.sync(),
-                        "data-persist__session": True},
-                        id=f"{self.__class__.__name__}")
-        elif config.scope == StateScope.CLIENT_LOCAL:
-            return Div({"data-signals": signals,
-                        "data-on-online__window": self.sync(),
-                        "data-on-load": self.sync(),
-                        "data-persist": True},
-                        id=f"{self.__class__.__name__}")
-        else:
-            return Div({"data-signals": signals}, id=f"{self.__class__.__name__}")
-    
-    @classmethod
-    def _get_config(cls):
-        """Get the effective StateConfig for this class."""
-        
-        config_attr = getattr(cls, '_config', None)
-        
-        if hasattr(config_attr, 'default') and config_attr.default is not None:
-            config = config_attr.default
-        elif config_attr is not None and not hasattr(config_attr, 'default'):
-            config = config_attr
-        else:
-            if cls.__name__ == 'State' or '_config' not in cls.__private_attributes__:
-                config = StateConfig()
-            else:
-                # This should not happen, but fallback to default
-                config = StateConfig()
-        
-        return config
-    
-    def _get_backend(self):
-        """Get persistence backend based on configuration."""        
-        config = self._get_config()
-        return config.persistence_backend
-    
+
+    def LiveDiv(self, heartbeat: float = 0):
+        return Div({"data-on-load": self.live(heartbeat)}, id=f"{self.__class__.__name__}")
+
     def save(self) -> bool:
         """Save state to configured backend."""
         config = self._get_config()
@@ -415,20 +364,6 @@ class State(BaseModel):
         backend: StatePersistenceBackend = self._get_backend()
         return backend.exists_sync(self.id)
     
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        cls._original_methods = {}
-        event_methods = []
-        for name, func in inspect.getmembers(cls, predicate=inspect.isfunction):
-            if hasattr(func, '_event_config'):
-                cls._original_methods[name] = func
-                event_methods.append((name, func))
-        
-        for name, method in event_methods:
-            _register_event_route(cls, method, method._event_config)
-            _add_url_generator(cls, name, method, method._event_config)
-    
-
     @classmethod
     def get(cls, req: Request, **kwargs) -> 'State':
         """Get or create state instance with consistent ID."""
@@ -493,3 +428,74 @@ class State(BaseModel):
         else:
             session_id = 'default'
         return f"{cls.__name__.lower()}_{session_id[:100]}"
+    
+    def __ft__(self):
+        """Render with appropriate data-persist attributes for client-side scopes."""
+        config = self._get_config()
+        signals = json.dumps(self.signals)
+        
+        if config.scope == StateScope.CLIENT_SESSION:
+            return Div({"data-signals": signals,
+                        "data-on-online__window": self.sync(),
+                        "data-on-load": self.sync(),
+                        "data-persist__session": True},
+                        id=f"{self.__class__.__name__}")
+        elif config.scope == StateScope.CLIENT_LOCAL:
+            return Div({"data-signals": signals,
+                        "data-on-online__window": self.sync(),
+                        "data-on-load": self.sync(),
+                        "data-persist": True},
+                        id=f"{self.__class__.__name__}")
+        else:
+            return Div({"data-signals": signals}, id=f"{self.__class__.__name__}")
+    
+    def __init__(self, request: Request = None, **kwargs):
+        super().__init__(**kwargs)
+        # Only override ID if not already set by class default or kwargs
+        if 'id' not in kwargs and not hasattr(self, 'id'):
+            if request:
+                datastar = datastar_from_queryParams(request)
+                if 'id' in datastar:
+                    self.id = datastar['id']
+                else:
+                    self.id = str(uuid.uuid4())
+            else:
+                self.id = str(uuid.uuid4())
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        cls._original_methods = {}
+        event_methods = []
+        for name, func in inspect.getmembers(cls, predicate=inspect.isfunction):
+            if hasattr(func, '_event_config'):
+                cls._original_methods[name] = func
+                event_methods.append((name, func))
+        
+        for name, method in event_methods:
+            _register_event_route(cls, method, method._event_config)
+            _add_url_generator(cls, name, method, method._event_config)
+    
+    @classmethod
+    def _get_config(cls):
+        """Get the effective StateConfig for this class."""
+        
+        config_attr = getattr(cls, '_config', None)
+        
+        if hasattr(config_attr, 'default') and config_attr.default is not None:
+            config = config_attr.default
+        elif config_attr is not None and not hasattr(config_attr, 'default'):
+            config = config_attr
+        else:
+            if cls.__name__ == 'State' or '_config' not in cls.__private_attributes__:
+                config = StateConfig()
+            else:
+                # This should not happen, but fallback to default
+                config = StateConfig()
+        
+        return config
+    
+    def _get_backend(self):
+        """Get persistence backend based on configuration."""        
+        config = self._get_config()
+        return config.persistence_backend
+    
