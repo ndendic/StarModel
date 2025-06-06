@@ -5,19 +5,23 @@ import asyncio
 
 rt = APIRouter()
 
-class CounterState(State):
+class CounterState(State): 
     """Enhanced counter with persistence and real-time sync."""
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "faststate_scope": StateScope.SERVER_MEMORY,
+        "faststate_auto_persist": True,
+        "faststate_persistence_backend": memory_persistence,
+        "faststate_ttl": 10,
+    }
+    
     count: int = 0
     last_updated_by: str = ""
     update_count: int = 0
     
-    # Auto-registration configuration
-    _config = StateConfig(
-        scope=StateScope.GLOBAL,
-        auto_persist=True,
-        persistence_backend="memory",
-        ttl=30
-    )
+    @classmethod
+    def _generate_state_id(cls, req, **kwargs):
+        return "global_counter"  # Fixed ID for global access
     
     @event(method="post")
     async def increment(self, amount: int = 1, user: str = "Anonymous"):      
@@ -54,7 +58,7 @@ def global_counter(req: Request, sess: dict, auth: str = None):
     """
     Global counter demo with persistence and real-time synchronization.
     """
-    counter = CounterState.get(req, sess, auth)
+    counter = CounterState.get(req)
     username = auth or sess.get('auth', 'Anonymous')
     
     return Main(
@@ -69,12 +73,12 @@ def global_counter(req: Request, sess: dict, auth: str = None):
             Div(
                 Div(
                     Div(
-                        Span(data_text="$count", cls="text-7xl font-bold text-primary"),
+                        Span(data_text=CounterState.count, cls="text-7xl font-bold text-primary"),
                         cls="text-center mb-4"
                     ),
-                    Div("Total updates: ", Span(data_text="$update_count"), cls="font-mono text-secondary"),
+                    Div("Total updates: ", Span(data_text=CounterState.update_count), cls="font-mono text-secondary"),
                     Div(f"Current user: {username}", cls="font-mono text-secondary"),
-                    Div("Last updated by: ", Span(data_text="$last_updated_by"), cls="font-mono text-secondary mb-2"),
+                    Div("Last updated by: ", Span(data_text=CounterState.last_updated_by), cls="font-mono text-secondary mb-2"),
                     Div(id="message", cls="font-mono text-secondary mb-2"),
                     cls="p-6 border border-primary rounded mb-6 text-center"
                 ),
@@ -110,18 +114,18 @@ def global_counter(req: Request, sess: dict, auth: str = None):
                 cls="mb-6"
             ),
             
-            # # Custom increment
-            # Div(
-            #     Form(
-            #         Input(name="amount", placeholder="Amount", type="number", value="1", data_bind="$amount",
-            #                 cls="border rounded px-3 py-2 mr-2 w-24"),
-            #         Button("+", type="submit", 
-            #                 cls="bg-blue-500 text-white px-4 py-2 rounded mr-2"),
-            #         data_on_submit=CounterState.increment(user=username),
-            #         cls="mb-6"
-            #     ),
-            #     cls="text-center mb-6"
-            # ),
+            # Custom increment
+            Div(
+                Form(
+                    Input(name="amount", placeholder="Amount", type="number", value="1", data_bind="$amount",
+                            cls="border rounded px-3 py-2 mr-2 w-24"),
+                    Button("+", type="submit", 
+                            cls="bg-blue-500 text-white px-4 py-2 rounded mr-2"),
+                    data_on_submit=CounterState.increment(user=username),
+                    cls="mb-6"
+                ),
+                cls="text-center mb-6"
+            ),
             
             A("← Back to Home", href="/", cls="text-secondary hover:underline"),
             

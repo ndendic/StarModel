@@ -3,18 +3,6 @@ from monsterui.all import *
 from faststate import *
 from route_collector import add_routes
 
-try:
-    # Add database persistence for production-like features
-    db_persistence = DatabaseStatePersistence(database_url="sqlite:///faststate_demo.db")
-    persistence_manager.add_backend("database", db_persistence)
-    print("✅ Database persistence backend added")
-except Exception as e:
-    print(f"⚠ Database persistence not available: {e}")
-
-# Add memory persistence for demo
-memory_persistence = MemoryStatePersistence()
-persistence_manager.add_backend("memory", memory_persistence)
-
 def auth_beforeware(req, sess):
     """
     Simple authentication beforeware using FastHTML/Starlette pattern.

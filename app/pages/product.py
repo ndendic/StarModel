@@ -6,18 +6,24 @@ rt = APIRouter()
 
 class ProductState(State):
     """Record-scoped state - tied to specific product records."""
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "faststate_scope": StateScope.SERVER_MEMORY,
+        "faststate_auto_persist": True,
+        "faststate_persistence_backend": memory_persistence,
+        "faststate_ttl": 7200,
+    }
+    
     name: str = ""
     price: float = 0.0
     description: str = ""
     in_stock: bool = True
     
-    # Auto-registration configuration
-    _config = StateConfig(
-        scope=StateScope.RECORD,
-        auto_persist=True,
-        persistence_backend="database",
-        ttl=7200
-    )
+    @classmethod
+    def _generate_state_id(cls, req, **kwargs):
+        # Generate product-specific ID from URL path
+        product_id = req.path_params.get('id', 'default') if req else 'default'
+        return f"product_{product_id}"
     
     @event
     def update_product(self, name: str, price: float, description: str):
@@ -39,7 +45,7 @@ def product_detail(req: Request, sess: dict, record_id: int, auth: str = None):
     Demonstrates state tied to specific database records.
     """
     # State automatically injected by FastHTML integration
-    product = ProductState.get(req, sess, auth)
+    product = ProductState.get(req)
 
     # Initialize product data if empty (simulating database load)
     if not product.name:

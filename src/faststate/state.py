@@ -3,17 +3,22 @@ import asyncio
 import json
 import uuid
 import urllib.parse
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from datastar_py import SSE_HEADERS
 from datastar_py import ServerSentEventGenerator as SSE
 from fasthtml.common import *
 from fasthtml.core import APIRouter, StreamingResponse, _find_p, parse_form
 from pydantic import BaseModel, Field
+from pydantic._internal._model_construction import ModelMetaclass
 
+from .persistence import StatePersistenceBackend, memory_persistence
 datastar_script = Script(src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.0-beta.11/bundles/datastar.js", type="module")
 
 rt = APIRouter()
+
+# Global state cache to ensure same instance for same ID
+_state_cache: Dict[str, 'State'] = {}
 
 class DatastarPayload:
     """Represents Datastar payload data that can be injected into event methods."""
@@ -43,6 +48,20 @@ class DatastarPayload:
     def raw_data(self) -> Dict[str, Any]:
         """Access the raw data dictionary."""
         return self._data
+
+def datastar_from_queryParams(request: Request) -> DatastarPayload:
+    """Synchronous version - Extract Datastar payload from request (query params only)."""
+    datastar_payload = None
+    
+    try:
+        # Only try getting datastar from query params in sync version
+        datastar_json_str = request.query_params.get('datastar')
+        if datastar_json_str:
+            datastar_payload = json.loads(datastar_json_str)
+    except Exception:
+        datastar_payload = None
+    
+    return DatastarPayload(datastar_payload)
 
 async def _extract_datastar_payload(request: Request) -> DatastarPayload:
     """Extract Datastar payload from request."""
@@ -81,11 +100,9 @@ async def _find_p_with_datastar(req: Request, arg: str, p, datastar_payload: Dat
     if arg.lower() == 'datastar' and anno is inspect.Parameter.empty:
         return datastar_payload
     
-    # Use FastHTML's original _find_p function
-    result = await _find_p(req, arg, p)
     
     # If FastHTML didn't find the parameter, try Datastar payload
-    if result is None and datastar_payload and arg in datastar_payload:
+    if datastar_payload and arg in datastar_payload:
         value = datastar_payload[arg]
         # Apply type conversion if needed
         if anno != inspect.Parameter.empty:
@@ -96,12 +113,19 @@ async def _find_p_with_datastar(req: Request, arg: str, p, datastar_payload: Dat
                 return value
         return value
     
+    try:
+        result = await _find_p(req, arg, p) # Use FastHTML's original _find_p function
+    except Exception:
+        result = None
+
     return result
 
-async def _wrap_req_with_datastar(req: Request, params: Dict[str, inspect.Parameter]):
+async def _wrap_req_with_datastar(req: Request, params: Dict[str, inspect.Parameter], namespace: str = None):
     """Extended version of _wrap_req that supports Datastar parameters."""
     # Extract Datastar payload first
     datastar_payload = await _extract_datastar_payload(req)
+    if namespace:
+        datastar_payload = datastar_payload.get(namespace, {})
     
     # Process all parameters with Datastar support
     result = []
@@ -118,6 +142,9 @@ def _register_event_route(state_cls, method, config):
     methods = [config.get('method', 'get').upper()]
     selector = config.get('selector')
     merge_mode = config.get('merge_mode', 'morph')
+    name = config.get('name')
+    include_in_schema = config.get('include_in_schema', True)
+    body_wrap = config.get('body_wrap')
     
     # Get method signature for FastHTML parameter injection
     sig = inspect.signature(method)
@@ -129,7 +156,8 @@ def _register_event_route(state_cls, method, config):
         
         # Use enhanced parameter resolution system with Datastar support
         # This handles all parameter extraction including Datastar payload
-        wrapped_params = await _wrap_req_with_datastar(request, sig.parameters)
+        namespace = state.namespace if state.use_namespace else None
+        wrapped_params = await _wrap_req_with_datastar(request, sig.parameters, namespace=namespace)
         
         # Call the method with resolved parameters (skip 'self' which is index 0)
         # The state instance replaces 'self', so we use state + params[1:]
@@ -141,15 +169,23 @@ def _register_event_route(state_cls, method, config):
         else:
             result = method(*method_params)
         
+        # Auto-persist state changes if configured
+        if state.auto_persist and not state.scope.startswith("client_"):
+            state.save()
+        
         # Handle async generators and regular returns
         async def sse_stream():            
             # Always send current state signals first
-            yield SSE.merge_signals(state.model_dump())
+            yield SSE.merge_signals(state.signals)
             
             if hasattr(result, '__aiter__'):  # Async generator
                 async for item in result:
+                    # Auto-persist state changes after each yield if configured
+                    if state.auto_persist and not state.scope.startswith("client_"):
+                        state.save()
+                    
                     # Send updated state after each yield
-                    yield SSE.merge_signals(state.model_dump())
+                    yield SSE.merge_signals(state.signals)
                     if item and (hasattr(item, '__ft__') or isinstance(item, FT)):  # FT component
                         fragments = [to_xml(item)]
                         if selector:
@@ -167,8 +203,7 @@ def _register_event_route(state_cls, method, config):
         return StreamingResponse(sse_stream(), media_type="text/event-stream", headers=SSE_HEADERS)
     
     # Register with APIRouter following FastHTML pattern
-    rt(path, methods=methods)(event_handler)
-
+    rt(path, methods=methods, name=name, include_in_schema=include_in_schema, body_wrap=body_wrap)(event_handler)
 
 def _add_url_generator(state_cls, method_name, method, config):
     """Add URL generator static method to the state class with FastHTML compatibility."""
@@ -223,8 +258,7 @@ def _add_url_generator(state_cls, method_name, method, config):
     # Also set it as a class attribute so it can be accessed as ClassName.method_name()
     setattr(state_cls, method_name, url_generator_method)
 
-
-def event(path=None, *, method="get", selector=None, merge_mode="morph"):
+def event(path=None, *, method="get", selector=None, merge_mode="morph", name=None, include_in_schema=True, body_wrap=None):
     """
     Simplified event decorator for State methods.
     
@@ -240,117 +274,279 @@ def event(path=None, *, method="get", selector=None, merge_mode="morph"):
             'path': path,
             'method': method,
             'selector': selector,
-            'merge_mode': merge_mode
+            'merge_mode': merge_mode,
+            'name': name,
+            'include_in_schema': include_in_schema,
+            'body_wrap': body_wrap
         }
         return func
     
     if callable(path):  # Used as @event without parentheses
         func = path
-        func._event_config = {'path': None, 'method': 'get', 'selector': None, 'merge_mode': 'morph'}
+        func._event_config = {'path': None, 'method': 'get', 'selector': None, 'merge_mode': 'morph', 'name': None, 'include_in_schema': True, 'body_wrap': None}
         return func
     
     return decorator
 
+class StateScope(StrEnum):
+    """Enumeration of persistence mechanisms supported by FastState."""
+    CLIENT_SESSION = "client_session"    # Datastar sessionStorage
+    CLIENT_LOCAL = "client_local"        # Datastar localStorage
+    SERVER_MEMORY = "server_memory"      # MemoryStatePersistence
+    CUSTOM = "custom"        # RedisStatePersistence
 
-class State(BaseModel):
+class SignalDescriptor:
+    """Return `$Model.field` on the class, real value on an instance."""
+
+    def __init__(self, field_name: str) -> None:
+        self.field_name = field_name
+
+    def __get__(self, instance, owner):
+        #  class access  →  owner is the model class, instance is None
+        if instance is None:
+            config = getattr(owner, "model_config", {})
+            ns = config.get("namespace", owner.__name__)
+            use_ns = config.get("use_namespace", False)
+            return f"${ns}.{self.field_name}" if use_ns else f"${self.field_name}"
+
+        #  instance access  →  behave like a normal attribute
+        return instance.__dict__[self.field_name]
+
+class SignalModelMeta(ModelMetaclass):
+    def __init__(cls, name, bases, ns, **kw):
+        super().__init__(name, bases, ns, **kw)
+
+        # For each declared field, replace the stub Pydantic left in the
+        # class __dict__ with our custom descriptor
+        for field_name in cls.model_fields:
+            setattr(cls, field_name, SignalDescriptor(field_name))
+
+class State(BaseModel, metaclass=SignalModelMeta):
+    """Base class for all state classes."""
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "namespace": None, # will set to class name if None
+        "use_namespace": True, # whether to use namespaced signals
+        "scope": StateScope.SERVER_MEMORY,
+        "auto_persist": True,
+        "persistence_backend": memory_persistence,
+        "ttl": None,
+    }
+
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
-    
-    # Configuration (excluded from model_dump by Pydantic underscore convention)
-    _config = None  # Will use default StateConfig if not set
-    
-    
 
-    def LiveDiv(self, heartbeat: float = 0):
-        return Div({"data-on-load": self.live(heartbeat)}, id=f"{self.__class__.__name__}")
-
-    def SignalsDiv(self):
-        return Div({"data-signals": json.dumps(self.model_dump())}, id=f"{self.__class__.__name__}"),
-
+    @classmethod
+    def _get_config_value(cls, key: str, default=None):
+        """Get configuration value from model_config."""
+        return cls.model_config.get(key, default)
     
+    @classmethod
+    def _set_config_value(cls, key: str, value: Any):
+        """Set configuration value in model_config."""
+        cls.model_config[key] = value
+    
+    @property
+    def namespace(self):
+        """Get the namespace for this state instance."""
+        return self.__class__._get_config_value("namespace", None)
+    
+    @property
+    def use_namespace(self):
+        """Get the use_namespace setting for this state instance."""
+        return self.__class__._get_config_value("use_namespace", True)
+
+    @property
+    def scope(self):
+        """Get the scope for this state instance."""
+        return self.__class__._get_config_value("scope", StateScope.SERVER_MEMORY)
+    
+    @property
+    def auto_persist(self):
+        """Get the auto_persist setting for this state instance."""
+        return self.__class__._get_config_value("auto_persist", True)
+    
+    @property
+    def persistence_backend(self):
+        """Get the persistence backend for this state instance."""
+        return self.__class__._get_config_value("persistence_backend", memory_persistence)
+    
+    @property
+    def ttl(self):
+        """Get the TTL for this state instance."""
+        return self.__class__._get_config_value("ttl", None)
+
+    @property
+    def signals(self) -> Dict[str, Any]:
+        if self.use_namespace:
+            return {self.namespace:self.model_dump()}
+        else:
+            return self.model_dump()
+
+    def signal(self, field: str) -> Any:
+        """Get '$' signal for field"""
+        if field in self.__class__.model_fields.keys():
+            if self.use_namespace:
+                return f"${self.namespace}.{field}"
+            else:
+                return f"${field}"
+        else:
+            raise ValueError(f"Field {field} not found in {self.namespace}")
+        
     @event
     async def live(self, heartbeat: float = 0):
         while True:
-            yield self.model_dump()
+            yield self.signals
             await asyncio.sleep(heartbeat)
 
     @event
     async def sync(self, datastar):    
-        return self.model_dump()
+        for f in self.__class__.model_fields.keys():
+            if f in datastar:
+                setattr(self, f, datastar[f])
+        return self.signals
     
-    def __ft__(self):
-        return self.SignalsDiv()
+    def LiveDiv(self, heartbeat: float = 0):
+        return Div({"data-on-load": self.live(heartbeat)}, id=f"{self.namespace}")
+
+    def PullSyncDiv(self):
+        return Div({"data-on-online__window": self.sync(self.signals)}, id=f"{self.namespace}")
+    
+    def save(self) -> bool:
+        """Save state to configured backend."""
+        if self.scope.startswith("client_"):
+            return True  # Datastar handles client persistence
+        
+        if self.auto_persist:
+            return self.persistence_backend.save_state_sync(self.id, self.signals, self.ttl)
+        return True
+    
+    def delete(self) -> bool:
+        """Delete state from configured backend."""
+        if self.scope.startswith("client_"):
+            return True  # Cannot delete client storage from server
+            
+        return self.persistence_backend.delete_state_sync(self.id)
+    
+    def exists(self) -> bool:
+        """Check if state exists in configured backend."""
+        if self.scope.startswith("client_"):
+            return False  # Cannot check client storage from server
+            
+        return self.persistence_backend.exists_sync(self.id)
     
     @classmethod
-    def _get_config(cls):
-        """Get the effective StateConfig for this class."""
-        from .registry import StateConfig
+    def get(cls, req: Request, **kwargs) -> 'State':
+        """Get or create state instance with consistent ID."""
+        global _state_cache
         
-        # Check if this class (not parent) defines _config
-        config_attr = getattr(cls, '_config', None)
+        # Generate deterministic state ID using the class's custom logic
+        state_id = cls._generate_state_id(req, **kwargs)
         
-        # Check if this is a ModelPrivateAttr with a default, or a direct value
-        if hasattr(config_attr, 'default') and config_attr.default is not None:
-            config = config_attr.default
-        elif config_attr is not None and not hasattr(config_attr, 'default'):
-            config = config_attr
+        # Check cache first
+        cache_key = f"{cls.__name__}:{state_id}"
+        if cache_key in _state_cache:
+            cached_state = _state_cache[cache_key]
+            # Update with any client-side changes if applicable
+            if cached_state.scope.startswith("client_"):
+                datastar = datastar_from_queryParams(req)
+                if datastar:
+                    for f in cls.model_fields.keys():
+                        if f in datastar:
+                            setattr(cached_state, f, datastar[f])
+            return cached_state
+        
+        # Create new instance with the determined ID
+        instance_kwargs = {**kwargs, 'id': state_id}
+        
+        # Check if this class uses client-side scope (check default value)
+        default_scope = cls._get_config_value("scope", StateScope.SERVER_MEMORY)
+        if default_scope.startswith("client_"):
+            # Client-side: handle datastar loading
+            state = cls(req, **instance_kwargs)
+            datastar = datastar_from_queryParams(req)
+            if datastar:
+                for f in cls.model_fields.keys():
+                    if f in datastar:
+                        setattr(state, f, datastar[f])
         else:
-            # Check if this class is the base State class or a subclass without explicit config
-            if cls.__name__ == 'State' or '_config' not in cls.__private_attributes__:
-                config = StateConfig()
+            # Server-side: try to load from backend
+            default_backend = cls._get_config_value("persistence_backend", memory_persistence)
+            state_data = None
+            if hasattr(default_backend, 'load_state_sync'):
+                state_data = default_backend.load_state_sync(state_id)
+            
+            if state_data:
+                # Merge loaded data with instance kwargs, prioritizing loaded data
+                merged_kwargs = {**instance_kwargs, **state_data}
+                state = cls(req, **merged_kwargs)
             else:
-                # This should not happen, but fallback to default
-                config = StateConfig()
+                # Create new instance
+                state = cls(req, **instance_kwargs)
+                # Auto-persist new instance if configured
+                default_auto_persist = cls._get_config_value("auto_persist", True)
+                if default_auto_persist:
+                    state.save()
         
-        return config
+        # Cache the instance
+        _state_cache[cache_key] = state
+        return state
+    
+    @classmethod
+    def _generate_state_id(cls, req: Request, **kwargs) -> str:
+        """Generate deterministic state ID. Override in subclasses for custom logic."""
+        # Default: use class name + session-based ID
+        if req and hasattr(req, 'cookies'):
+            session_id = req.cookies.get('session_', 'default')
+        else:
+            session_id = 'default'
+        return f"{cls.__name__.lower()}_{session_id[:100]}"
+    
+    def __ft__(self):
+        """Render with appropriate data-persist attributes for client-side scopes."""
+        signals = json.dumps(self.signals)
+        
+        if self.scope == StateScope.CLIENT_SESSION:
+            return Div({"data-signals": signals,
+                        "data-on-online__window": self.sync(),
+                        "data-on-load": self.sync(),
+                        "data-persist__session": True},
+                        id=f"{self.namespace}")
+        elif self.scope == StateScope.CLIENT_LOCAL:
+            return Div({"data-signals": signals,
+                        "data-on-online__window": self.sync(),
+                        "data-on-load": self.sync(),
+                        "data-persist": True},
+                        id=f"{self.namespace}")
+        else:
+            return Div({"data-signals": signals}, id=f"{self.namespace}")
+    
+    def __init__(self, request: Request = None, **kwargs):
+        super().__init__(**kwargs)
+        # Only override ID if not already set by class default or kwargs
+        if 'id' not in kwargs and not hasattr(self, 'id'):
+            if request:
+                datastar = datastar_from_queryParams(request)
+                if 'id' in datastar:
+                    self.id = datastar['id']
+                else:
+                    self.id = str(uuid.uuid4())
+            else:
+                self.id = str(uuid.uuid4())
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        # Store original methods before we replace them with URL generators
         cls._original_methods = {}
+        event_functions = []
+        for name, func in inspect.getmembers(cls, predicate=inspect.isfunction):
+            if hasattr(func, '_event_config'):
+                cls._original_methods[name] = func
+                event_functions.append((name, func))
         
-        # First, collect all event-decorated methods
-        event_methods = []
-        for name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
-            if hasattr(method, '_event_config'):
-                # Store original method
-                cls._original_methods[name] = method
-                event_methods.append((name, method))
+        for name, func in event_functions:
+            _register_event_route(cls, func, func._event_config)
+            _add_url_generator(cls, name, func, func._event_config)
         
-        # Then register routes and add URL generators
-        for name, method in event_methods:
-            # Register the route using original method
-            _register_event_route(cls, method, method._event_config)
-            # Add URL generator static method
-            _add_url_generator(cls, name, method, method._event_config)
+        if cls._get_config_value("namespace") is None and cls._get_config_value("use_namespace", True):
+            cls._set_config_value("namespace", cls.__name__)
     
-
-    @classmethod
-    def get(cls, req: Request, sess: dict = None, auth: str = None) -> 'State':
-        """Get state instance for this state class from the request context using FastHTML patterns."""
-        # Use FastHTML's automatic session and auth extraction if not provided
-        if sess is None:
-            sess = req.scope.get('session', {})
-        if auth is None:
-            auth = req.scope.get('auth', None)
-            if not auth and sess:
-                auth = sess.get('auth', None)
-        
-        # Import needed components
-        try:
-            from .registry import state_registry
-            
-            # Auto-register the state class if not already registered
-            if not state_registry.is_state_type(cls):
-                # Get effective config for this class
-                config = cls._get_config()
-                
-                # Register the state
-                state_registry.register(cls, config)
-            
-            # Use state registry resolution logic
-            return state_registry.resolve_state_sync(cls, req, sess, auth)
-            
-        except (ImportError, AttributeError, Exception) as e:
-            print(f"Error getting state: {e}")
-            # Fallback: create new instance (for backward compatibility)
-            return cls()
+    

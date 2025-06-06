@@ -4,21 +4,23 @@ from faststate import *
 
 rt = APIRouter()
 
-conf = StateConfig(
-    scope=StateScope.GLOBAL,
-    auto_persist=True,
-    persistence_backend="memory",
-    ttl=None
-)
-
 class ChatState(State):
     """Global chat state for real-time collaboration demo."""
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "faststate_scope": StateScope.SERVER_MEMORY,
+        "faststate_auto_persist": True,
+        "faststate_persistence_backend": memory_persistence,
+        "faststate_ttl": None,
+    }
+    
     messages: list = []
     active_users: int = 0
     last_message_id: int = 0
     
-    # Auto-registration configuration
-    _config = conf
+    @classmethod
+    def _generate_state_id(cls, req, **kwargs):
+        return "global_chat"  # Fixed ID for global access
     
     @event(selector="#chat-messages",  merge_mode="append")
     def send_message(self, username: str, message: str):
@@ -65,7 +67,7 @@ def realtime_chat(req: Request, sess: dict, auth: str = None):
     """
     Real-time chat demo showcasing global state and SSE broadcasting.
     """
-    chat = ChatState.get(req, sess, auth)
+    chat = ChatState.get(req)
     username = auth or sess.get('auth', 'Anonymous')
     
     return Titled("Real-time Chat",

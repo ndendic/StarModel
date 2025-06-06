@@ -7,17 +7,24 @@ rt = APIRouter()
 
 class UserProfileState(State):
     """User-scoped state - persists across sessions for authenticated users."""
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "faststate_scope": StateScope.SERVER_MEMORY,
+        "faststate_auto_persist": True,
+        "faststate_persistence_backend": memory_persistence,
+        "faststate_ttl": 3600,
+    }
+    
     name: str = ""
     email: str = ""
     preferences: dict = {}
     
-    # Auto-registration configuration
-    _config = StateConfig(
-        scope=StateScope.USER,
-        auto_persist=True,
-        persistence_backend="database",
-        ttl=3600
-    )
+    @classmethod
+    def _generate_state_id(cls, req, **kwargs):
+        # Generate user-specific ID from auth or session
+        auth = kwargs.get('auth') or (req.scope.get('auth') if req else None)
+        user_id = auth or 'anonymous'
+        return f"profile_user_{user_id}"
     
     @event(selector="#profile-updates")
     def update_profile(self, name: str, email: str):
@@ -108,7 +115,7 @@ def profile(req: Request, sess: dict, auth: str = None):
     Uses simple .get() method for state resolution.
     """
     # Simple, explicit state resolution
-    profile = UserProfileState.get(req, sess, auth)
+    profile = UserProfileState.get(req)
     
     return Titled("User Profile",
         Main(

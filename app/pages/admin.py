@@ -1,22 +1,27 @@
 from fasthtml.common import *
 from monsterui.all import *
 from faststate import *
+import json
 
 rt = APIRouter()
 
 class GlobalSettingsState(State):
     """Global state - shared across all users (admin only)."""
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "faststate_scope": StateScope.SERVER_MEMORY,
+        "faststate_auto_persist": True,
+        "faststate_persistence_backend": memory_persistence,
+        "faststate_ttl": None,
+    }
+    
     theme: str = "light"
     maintenance_mode: bool = False
     announcement: str = ""
     
-    # Auto-registration configuration
-    _config = StateConfig(
-        scope=StateScope.GLOBAL,
-        auto_persist=True,
-        persistence_backend="database",
-        ttl=None
-    )
+    @classmethod
+    def _generate_state_id(cls, req, **kwargs):
+        return "global_settings" 
     
     @event
     def toggle_maintenance(self):
@@ -25,8 +30,8 @@ class GlobalSettingsState(State):
         return Div(f"Maintenance mode {status}!", cls="text-orange-600 font-bold")
     
     @event
-    def set_announcement(self, message: str):
-        self.announcement = message
+    def set_announcement(self, announcement: str):
+        self.announcement = announcement
         return Div("Announcement updated!", cls="text-blue-600 font-bold")
     
     @event
@@ -36,29 +41,29 @@ class GlobalSettingsState(State):
 
 
 @rt('/admin')
-def admin_panel(req: Request, sess: dict, auth: str = None):
+def admin_panel(req: Request):
     """
     Admin panel with global state.
     Uses simple .get() method for state resolution.
     """
     # Simple, explicit state resolution
-    settings = GlobalSettingsState.get(req, sess, auth)
+    settings = GlobalSettingsState.get(req)
     return Titled("Admin Panel",
         Main(
             Div(
                 H1("⚙️ Admin Panel", cls="text-3xl font-bold mb-6"),
                 
                 # Global state display
-                Div(data_signals=json.dumps(settings.model_dump()), id="admin-updates"),
+                Div(data_signals=json.dumps(settings.signals), id="admin-updates"),
                 
                 # System status
                 Div(
                     H2("System Status", cls="text-xl font-bold mb-4"),
                     Div(
-                        Div("Theme: ", Span(data_text="$theme"), cls="mb-2"),
-                        Div("Maintenance Mode: ", Span(data_text="$maintenance_mode"), cls="mb-2"),
-                        Div("Announcement: ", Span(data_text="$announcement"), cls="mb-2"),
-                        cls="bg-gray-100 p-4 rounded mb-6"
+                        Div("Theme: ", Span(data_text=GlobalSettingsState.theme), cls="mb-2"),
+                        Div("Maintenance Mode: ", Span(data_text=GlobalSettingsState.maintenance_mode), cls="mb-2"),
+                        Div("Announcement: ", Span(data_text=GlobalSettingsState.announcement), cls="mb-2"),
+                        cls="bg-secondary-foreground p-4 rounded mb-6"
                     ),
                     cls="mb-6"
                 ),
@@ -70,16 +75,17 @@ def admin_panel(req: Request, sess: dict, auth: str = None):
                     Div(
                         Button("Toggle Maintenance Mode", 
                                data_on_click=GlobalSettingsState.toggle_maintenance(),
-                               cls="bg-orange-500 text-white px-4 py-2 rounded mr-2 mb-2"),
+                               cls=ButtonT.primary+"px-4 py-2 rounded mr-2 mb-2"),
                         cls="mb-4"
                     ),
                     
                     Div(
                         Input(placeholder="System announcement...", name="message",
+                              data_bind=GlobalSettingsState.announcement,
                               cls="border rounded px-3 py-2 mr-2 flex-1"),
                         Button("Set Announcement", 
                                data_on_click=GlobalSettingsState.set_announcement(),
-                               cls="bg-blue-500 text-white px-4 py-2 rounded"),
+                               cls=ButtonT.secondary+"px-4 py-2 rounded"),
                         cls="flex mb-4"
                     ),
                     
@@ -105,14 +111,15 @@ def admin_panel(req: Request, sess: dict, auth: str = None):
     )
 
 @rt('/status')
-def system_status(req: Request, sess: dict, auth: str = None):
+def system_status(req: Request):
     """
     System status page showing SSE connections, persistence stats, and more.
     """
     # Get SSE connection stats
     
-    # Get state registry stats
-    cached_states = len(state_registry.get_cached_instances())
+    # Get state cache stats
+    from faststate.state import _state_cache
+    cached_states = len(_state_cache)
     
     return Titled("System Status",
         Main(
@@ -121,38 +128,21 @@ def system_status(req: Request, sess: dict, auth: str = None):
                 P("Real-time system monitoring and statistics.", 
                   cls="text-gray-600 mb-6"),
                                                 
-                # State Registry Stats
+                # State Cache Stats
                 Div(
-                    H2("State Registry Statistics", cls="text-xl font-bold mb-4"),
+                    H2("State Cache Statistics", cls="text-xl font-bold mb-4"),
                     Div(
-                        Div(f"Registered State Types: {len(state_registry._state_configs)}", cls="mb-2"),
                         Div(f"Cached State Instances: {cached_states}", cls="mb-2"),
-                        Div("Registered Types:", cls="mb-2 font-bold"),
+                        Div("Cache Keys:", cls="mb-2 font-bold"),
                         *[
-                            Div(f"  • {state_cls.__name__} ({config.scope.value} scope, persist: {config.auto_persist})", 
-                                cls="ml-4 text-sm text-gray-600")
-                            for state_cls, config in state_registry._state_configs.items()
-                        ],
+                            Div(f"  • {cache_key}", cls="ml-4 text-sm text-gray-600")
+                            for cache_key in _state_cache.keys()
+                        ] if _state_cache else [Div("  • No cached states", cls="ml-4 text-sm text-gray-600")],
                         cls="bg-green-50 p-4 rounded mb-6"
                     ),
                     cls="mb-6"
                 ),
                 
-                # Persistence Backend Status
-                Div(
-                    H2("Persistence Backends", cls="text-xl font-bold mb-4"),
-                    Div(
-                        Div(f"Available Backends: {len(persistence_manager.backends)}", cls="mb-2"),
-                        Div("Backend Types:", cls="mb-2 font-bold"),
-                        *[
-                            Div(f"  • {name} ({type(backend).__name__})", 
-                                cls="ml-4 text-sm text-gray-600")
-                            for name, backend in persistence_manager.backends.items()
-                        ],
-                        cls="bg-purple-50 p-4 rounded mb-6"
-                    ),
-                    cls="mb-6"
-                ),
                 
                 # System Information
                 Div(
@@ -160,7 +150,7 @@ def system_status(req: Request, sess: dict, auth: str = None):
                     Div(
                         Div(f"Session ID: {req.cookies.get('session_', 'auto-generated')[:100]}", cls="mb-2 font-mono text-sm"),
                         Div(f"Authentication: {auth or 'Not authenticated'}", cls="mb-2 font-mono text-sm"),
-                        Div(f"FastState Version: Enhanced with SSE + Persistence", cls="mb-2 font-mono text-sm"),
+                        Div("FastState Version: Enhanced with SSE", cls="mb-2 font-mono text-sm"),
                         cls="bg-gray-50 p-4 rounded mb-6"
                     ),
                     cls="mb-6"
