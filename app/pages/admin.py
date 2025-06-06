@@ -60,9 +60,9 @@ def admin_panel(req: Request):
                 Div(
                     H2("System Status", cls="text-xl font-bold mb-4"),
                     Div(
-                        Div("Theme: ", Span(data_text="$theme"), cls="mb-2"),
-                        Div("Maintenance Mode: ", Span(data_text="$maintenance_mode"), cls="mb-2"),
-                        Div("Announcement: ", Span(data_text="$announcement"), cls="mb-2"),
+                        Div("Theme: ", Span(data_text=GlobalSettingsState.theme), cls="mb-2"),
+                        Div("Maintenance Mode: ", Span(data_text=GlobalSettingsState.maintenance_mode), cls="mb-2"),
+                        Div("Announcement: ", Span(data_text=GlobalSettingsState.announcement), cls="mb-2"),
                         cls="bg-secondary-foreground p-4 rounded mb-6"
                     ),
                     cls="mb-6"
@@ -81,7 +81,7 @@ def admin_panel(req: Request):
                     
                     Div(
                         Input(placeholder="System announcement...", name="message",
-                              data_bind="$announcement",
+                              data_bind=GlobalSettingsState.announcement,
                               cls="border rounded px-3 py-2 mr-2 flex-1"),
                         Button("Set Announcement", 
                                data_on_click=GlobalSettingsState.set_announcement(),
