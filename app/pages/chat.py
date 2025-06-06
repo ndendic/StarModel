@@ -4,21 +4,19 @@ from faststate import *
 
 rt = APIRouter()
 
-conf = StateConfig(
-    scope=StateScope.SERVER_MEMORY,
-    auto_persist=True,
-    persistence_backend=memory_persistence,
-    ttl=None
-)
-
 class ChatState(State):
     """Global chat state for real-time collaboration demo."""
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "faststate_scope": StateScope.SERVER_MEMORY,
+        "faststate_auto_persist": True,
+        "faststate_persistence_backend": memory_persistence,
+        "faststate_ttl": None,
+    }
+    
     messages: list = []
     active_users: int = 0
     last_message_id: int = 0
-    
-    # Auto-registration configuration
-    _config = conf
     
     @classmethod
     def _generate_state_id(cls, req, **kwargs):

@@ -7,17 +7,17 @@ rt = APIRouter()
 
 class UserProfileState(State):
     """User-scoped state - persists across sessions for authenticated users."""
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "faststate_scope": StateScope.SERVER_MEMORY,
+        "faststate_auto_persist": True,
+        "faststate_persistence_backend": memory_persistence,
+        "faststate_ttl": 3600,
+    }
+    
     name: str = ""
     email: str = ""
     preferences: dict = {}
-    
-    # Auto-registration configuration
-    _config = StateConfig(
-        scope=StateScope.SERVER_MEMORY,
-        auto_persist=True,
-        persistence_backend=memory_persistence,
-        ttl=3600
-    )
     
     @classmethod
     def _generate_state_id(cls, req, **kwargs):

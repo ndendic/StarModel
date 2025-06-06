@@ -29,7 +29,16 @@ class MyState(State):
     @event(selector="#ticker-box", merge_mode="inner")
     def start_ticking(self):
         self.tick_count += 1
-        return H4("Tick #", Span(data_text="$tick_count"), cls="text-red-500")
+        return H4("Tick #", Span(data_text=self.signal("tick_count")), cls="text-red-500")
+    
+    def card(self):
+        return Div(
+            H2(f"{self.namespace} Card", cls=TextT.primary),
+            H4("myStr: ", Span(data_text=MyState.myStr, cls=TextT.primary)),
+            H4("myInt: ", Span(data_text=MyState.myInt, cls=TextT.primary)),
+            H4("tick_count: ", Span(data_text=MyState.tick_count, cls=TextT.primary)),
+            cls="bg-secondary-foreground p-4 rounded mb-4"
+        )
 
 
 @rt('/')
@@ -53,8 +62,8 @@ def index(req: Request, sess: dict, auth: str = None):
         ),
         
         # State information
-        my_state,  # Uses __ft__ method for rendering
         Div({"data-persist__session":True}),
+        my_state.card(),  # Uses __ft__ method for rendering
         Div(
             H2("📊 Current State Info", cls="text-2xl font-bold mb-4"),
             Div(
@@ -69,7 +78,7 @@ def index(req: Request, sess: dict, auth: str = None):
         # Interactive controls
         Div(
             H3("🎮 Interactive Controls", cls="text-xl font-bold mb-4"),
-            Input(data_bind="$myStr", data_on_change=MyState.set_myStr(), 
+            Input(data_bind=my_state.signal("myStr"), data_on_change=MyState.set_myStr(), 
                     cls="border rounded px-3 py-2 mb-4 w-full", placeholder="Edit text..."),
                     
             H4("Counter Controls", cls="font-bold mb-2"),

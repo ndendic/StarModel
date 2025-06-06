@@ -6,18 +6,18 @@ rt = APIRouter()
 
 class ProductState(State):
     """Record-scoped state - tied to specific product records."""
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "faststate_scope": StateScope.SERVER_MEMORY,
+        "faststate_auto_persist": True,
+        "faststate_persistence_backend": memory_persistence,
+        "faststate_ttl": 7200,
+    }
+    
     name: str = ""
     price: float = 0.0
     description: str = ""
     in_stock: bool = True
-    
-    # Auto-registration configuration
-    _config = StateConfig(
-        scope=StateScope.SERVER_MEMORY,
-        auto_persist=True,
-        persistence_backend=memory_persistence,
-        ttl=7200
-    )
     
     @classmethod
     def _generate_state_id(cls, req, **kwargs):

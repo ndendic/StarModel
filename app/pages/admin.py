@@ -7,17 +7,17 @@ rt = APIRouter()
 
 class GlobalSettingsState(State):
     """Global state - shared across all users (admin only)."""
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "faststate_scope": StateScope.SERVER_MEMORY,
+        "faststate_auto_persist": True,
+        "faststate_persistence_backend": memory_persistence,
+        "faststate_ttl": None,
+    }
+    
     theme: str = "light"
     maintenance_mode: bool = False
     announcement: str = ""
-    
-    # Auto-registration configuration
-    _config = StateConfig(
-        scope=StateScope.SERVER_MEMORY,
-        auto_persist=True,
-        persistence_backend=memory_persistence,
-        ttl=None
-    )
     
     @classmethod
     def _generate_state_id(cls, req, **kwargs):

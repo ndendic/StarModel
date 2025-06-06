@@ -5,21 +5,19 @@ import asyncio
 
 rt = APIRouter()
 
-config = StateConfig(
-    scope=StateScope.SERVER_MEMORY,
-    auto_persist=True,
-    persistence_backend = memory_persistence,
-    ttl=10
-)
-
 class CounterState(State): 
     """Enhanced counter with persistence and real-time sync."""
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "faststate_scope": StateScope.SERVER_MEMORY,
+        "faststate_auto_persist": True,
+        "faststate_persistence_backend": memory_persistence,
+        "faststate_ttl": 10,
+    }
+    
     count: int = 0
     last_updated_by: str = ""
     update_count: int = 0
-    
-    # Auto-registration configuration
-    _config = config
     
     @classmethod
     def _generate_state_id(cls, req, **kwargs):

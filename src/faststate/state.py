@@ -10,6 +10,7 @@ from datastar_py import ServerSentEventGenerator as SSE
 from fasthtml.common import *
 from fasthtml.core import APIRouter, StreamingResponse, _find_p, parse_form
 from pydantic import BaseModel, Field
+from pydantic._internal._model_construction import ModelMetaclass
 
 from .persistence import StatePersistenceBackend, memory_persistence
 datastar_script = Script(src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.0-beta.11/bundles/datastar.js", type="module")
@@ -119,10 +120,12 @@ async def _find_p_with_datastar(req: Request, arg: str, p, datastar_payload: Dat
 
     return result
 
-async def _wrap_req_with_datastar(req: Request, params: Dict[str, inspect.Parameter]):
+async def _wrap_req_with_datastar(req: Request, params: Dict[str, inspect.Parameter], namespace: str = None):
     """Extended version of _wrap_req that supports Datastar parameters."""
     # Extract Datastar payload first
     datastar_payload = await _extract_datastar_payload(req)
+    if namespace:
+        datastar_payload = datastar_payload.get(namespace, {})
     
     # Process all parameters with Datastar support
     result = []
@@ -153,7 +156,8 @@ def _register_event_route(state_cls, method, config):
         
         # Use enhanced parameter resolution system with Datastar support
         # This handles all parameter extraction including Datastar payload
-        wrapped_params = await _wrap_req_with_datastar(request, sig.parameters)
+        namespace = state.namespace if state.use_namespace else None
+        wrapped_params = await _wrap_req_with_datastar(request, sig.parameters, namespace=namespace)
         
         # Call the method with resolved parameters (skip 'self' which is index 0)
         # The state instance replaces 'self', so we use state + params[1:]
@@ -166,8 +170,7 @@ def _register_event_route(state_cls, method, config):
             result = method(*method_params)
         
         # Auto-persist state changes if configured
-        config = state._get_config()
-        if config.auto_persist and not config.scope.value.startswith("client_"):
+        if state.auto_persist and not state.scope.startswith("client_"):
             state.save()
         
         # Handle async generators and regular returns
@@ -178,7 +181,7 @@ def _register_event_route(state_cls, method, config):
             if hasattr(result, '__aiter__'):  # Async generator
                 async for item in result:
                     # Auto-persist state changes after each yield if configured
-                    if config.auto_persist and not config.scope.value.startswith("client_"):
+                    if state.auto_persist and not state.scope.startswith("client_"):
                         state.save()
                     
                     # Send updated state after each yield
@@ -292,32 +295,103 @@ class StateScope(StrEnum):
     SERVER_MEMORY = "server_memory"      # MemoryStatePersistence
     CUSTOM = "custom"        # RedisStatePersistence
 
+class SignalDescriptor:
+    """Return `$Model.field` on the class, real value on an instance."""
 
-class StateConfig(BaseModel):
-    """Configuration for a state class defining its persistence mechanism."""
-    model_config = {"arbitrary_types_allowed": True}
-    
-    scope: StateScope = StateScope.SERVER_MEMORY
-    auto_persist: bool = True
-    persistence_backend: StatePersistenceBackend = memory_persistence
-    ttl: Optional[int] = None  # Time to live in seconds
+    def __init__(self, field_name: str) -> None:
+        self.field_name = field_name
 
+    def __get__(self, instance, owner):
+        #  class access  →  owner is the model class, instance is None
+        if instance is None:
+            config = getattr(owner, "model_config", {})
+            ns = config.get("namespace", owner.__name__)
+            use_ns = config.get("use_namespace", False)
+            return f"${ns}.{self.field_name}" if use_ns else f"${self.field_name}"
 
-class State(BaseModel):
+        #  instance access  →  behave like a normal attribute
+        return instance.__dict__[self.field_name]
+
+class SignalModelMeta(ModelMetaclass):
+    def __init__(cls, name, bases, ns, **kw):
+        super().__init__(name, bases, ns, **kw)
+
+        # For each declared field, replace the stub Pydantic left in the
+        # class __dict__ with our custom descriptor
+        for field_name in cls.model_fields:
+            setattr(cls, field_name, SignalDescriptor(field_name))
+
+class State(BaseModel, metaclass=SignalModelMeta):
     """Base class for all state classes."""
-    model_config = {"arbitrary_types_allowed": True}
+    model_config = {
+        "arbitrary_types_allowed": True,
+        "namespace": None, # will set to class name if None
+        "use_namespace": True, # whether to use namespaced signals
+        "scope": StateScope.SERVER_MEMORY,
+        "auto_persist": True,
+        "persistence_backend": memory_persistence,
+        "ttl": None,
+    }
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
-    _config = None  # TODO to be removed. Will use default StateConfig if not set
-    _scope: StateScope = StateScope.SERVER_MEMORY
-    _auto_persist: bool = True
-    _persistence_backend: StatePersistenceBackend = memory_persistence
-    _ttl: Optional[int] = None  # Time to live in seconds
+
+    @classmethod
+    def _get_config_value(cls, key: str, default=None):
+        """Get configuration value from model_config."""
+        return cls.model_config.get(key, default)
+    
+    @classmethod
+    def _set_config_value(cls, key: str, value: Any):
+        """Set configuration value in model_config."""
+        cls.model_config[key] = value
+    
+    @property
+    def namespace(self):
+        """Get the namespace for this state instance."""
+        return self.__class__._get_config_value("namespace", None)
+    
+    @property
+    def use_namespace(self):
+        """Get the use_namespace setting for this state instance."""
+        return self.__class__._get_config_value("use_namespace", True)
+
+    @property
+    def scope(self):
+        """Get the scope for this state instance."""
+        return self.__class__._get_config_value("scope", StateScope.SERVER_MEMORY)
+    
+    @property
+    def auto_persist(self):
+        """Get the auto_persist setting for this state instance."""
+        return self.__class__._get_config_value("auto_persist", True)
+    
+    @property
+    def persistence_backend(self):
+        """Get the persistence backend for this state instance."""
+        return self.__class__._get_config_value("persistence_backend", memory_persistence)
+    
+    @property
+    def ttl(self):
+        """Get the TTL for this state instance."""
+        return self.__class__._get_config_value("ttl", None)
 
     @property
     def signals(self) -> Dict[str, Any]:
-        return self.model_dump()
-    
+        if self.use_namespace:
+            return {self.namespace:self.model_dump()}
+        else:
+            return self.model_dump()
+
+    def signal(self, field: str) -> Any:
+        """Get '$' signal for field"""
+        if field in self.__class__.model_fields.keys():
+            if self.use_namespace:
+                return f"${self.namespace}.{field}"
+            else:
+                return f"${field}"
+        else:
+            raise ValueError(f"Field {field} not found in {self.namespace}")
+        
     @event
     async def live(self, heartbeat: float = 0):
         while True:
@@ -331,44 +405,39 @@ class State(BaseModel):
                 setattr(self, f, datastar[f])
         return self.signals
     
-
     def LiveDiv(self, heartbeat: float = 0):
-        return Div({"data-on-load": self.live(heartbeat)}, id=f"{self.__class__.__name__}")
+        return Div({"data-on-load": self.live(heartbeat)}, id=f"{self.namespace}")
 
+    def PullSyncDiv(self):
+        return Div({"data-on-online__window": self.sync(self.signals)}, id=f"{self.namespace}")
+    
     def save(self) -> bool:
         """Save state to configured backend."""
-        config = self._get_config()
-        if config.scope.value.startswith("client_"):
+        if self.scope.startswith("client_"):
             return True  # Datastar handles client persistence
         
-        if config.auto_persist:
-            backend: StatePersistenceBackend = self._get_backend()
-            return backend.save_state_sync(self.id, self.signals, config.ttl)
+        if self.auto_persist:
+            return self.persistence_backend.save_state_sync(self.id, self.signals, self.ttl)
         return True
     
     def delete(self) -> bool:
         """Delete state from configured backend."""
-        config = self._get_config()
-        if config.scope.value.startswith("client_"):
+        if self.scope.startswith("client_"):
             return True  # Cannot delete client storage from server
             
-        backend: StatePersistenceBackend = self._get_backend()
-        return backend.delete_state_sync(self.id)
+        return self.persistence_backend.delete_state_sync(self.id)
     
     def exists(self) -> bool:
         """Check if state exists in configured backend."""
-        config = self._get_config()
-        if config.scope.value.startswith("client_"):
+        if self.scope.startswith("client_"):
             return False  # Cannot check client storage from server
             
-        backend: StatePersistenceBackend = self._get_backend()
-        return backend.exists_sync(self.id)
+        return self.persistence_backend.exists_sync(self.id)
     
     @classmethod
     def get(cls, req: Request, **kwargs) -> 'State':
         """Get or create state instance with consistent ID."""
         global _state_cache
-        config = cls._get_config()
         
         # Generate deterministic state ID using the class's custom logic
         state_id = cls._generate_state_id(req, **kwargs)
@@ -378,7 +447,7 @@ class State(BaseModel):
         if cache_key in _state_cache:
             cached_state = _state_cache[cache_key]
             # Update with any client-side changes if applicable
-            if config.scope.value.startswith("client_"):
+            if cached_state.scope.startswith("client_"):
                 datastar = datastar_from_queryParams(req)
                 if datastar:
                     for f in cls.model_fields.keys():
@@ -389,7 +458,9 @@ class State(BaseModel):
         # Create new instance with the determined ID
         instance_kwargs = {**kwargs, 'id': state_id}
         
-        if config.scope.value.startswith("client_"):
+        # Check if this class uses client-side scope (check default value)
+        default_scope = cls._get_config_value("scope", StateScope.SERVER_MEMORY)
+        if default_scope.startswith("client_"):
             # Client-side: handle datastar loading
             state = cls(req, **instance_kwargs)
             datastar = datastar_from_queryParams(req)
@@ -399,10 +470,10 @@ class State(BaseModel):
                         setattr(state, f, datastar[f])
         else:
             # Server-side: try to load from backend
-            backend = config.persistence_backend
+            default_backend = cls._get_config_value("persistence_backend", memory_persistence)
             state_data = None
-            if hasattr(backend, 'load_state_sync'):
-                state_data = backend.load_state_sync(state_id)
+            if hasattr(default_backend, 'load_state_sync'):
+                state_data = default_backend.load_state_sync(state_id)
             
             if state_data:
                 # Merge loaded data with instance kwargs, prioritizing loaded data
@@ -412,7 +483,8 @@ class State(BaseModel):
                 # Create new instance
                 state = cls(req, **instance_kwargs)
                 # Auto-persist new instance if configured
-                if config.auto_persist:
+                default_auto_persist = cls._get_config_value("auto_persist", True)
+                if default_auto_persist:
                     state.save()
         
         # Cache the instance
@@ -431,23 +503,22 @@ class State(BaseModel):
     
     def __ft__(self):
         """Render with appropriate data-persist attributes for client-side scopes."""
-        config = self._get_config()
         signals = json.dumps(self.signals)
         
-        if config.scope == StateScope.CLIENT_SESSION:
+        if self.scope == StateScope.CLIENT_SESSION:
             return Div({"data-signals": signals,
                         "data-on-online__window": self.sync(),
                         "data-on-load": self.sync(),
                         "data-persist__session": True},
-                        id=f"{self.__class__.__name__}")
-        elif config.scope == StateScope.CLIENT_LOCAL:
+                        id=f"{self.namespace}")
+        elif self.scope == StateScope.CLIENT_LOCAL:
             return Div({"data-signals": signals,
                         "data-on-online__window": self.sync(),
                         "data-on-load": self.sync(),
                         "data-persist": True},
-                        id=f"{self.__class__.__name__}")
+                        id=f"{self.namespace}")
         else:
-            return Div({"data-signals": signals}, id=f"{self.__class__.__name__}")
+            return Div({"data-signals": signals}, id=f"{self.namespace}")
     
     def __init__(self, request: Request = None, **kwargs):
         super().__init__(**kwargs)
@@ -465,37 +536,17 @@ class State(BaseModel):
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         cls._original_methods = {}
-        event_methods = []
+        event_functions = []
         for name, func in inspect.getmembers(cls, predicate=inspect.isfunction):
             if hasattr(func, '_event_config'):
                 cls._original_methods[name] = func
-                event_methods.append((name, func))
+                event_functions.append((name, func))
         
-        for name, method in event_methods:
-            _register_event_route(cls, method, method._event_config)
-            _add_url_generator(cls, name, method, method._event_config)
+        for name, func in event_functions:
+            _register_event_route(cls, func, func._event_config)
+            _add_url_generator(cls, name, func, func._event_config)
+        
+        if cls._get_config_value("namespace") is None and cls._get_config_value("use_namespace", True):
+            cls._set_config_value("namespace", cls.__name__)
     
-    @classmethod
-    def _get_config(cls):
-        """Get the effective StateConfig for this class."""
-        
-        config_attr = getattr(cls, '_config', None)
-        
-        if hasattr(config_attr, 'default') and config_attr.default is not None:
-            config = config_attr.default
-        elif config_attr is not None and not hasattr(config_attr, 'default'):
-            config = config_attr
-        else:
-            if cls.__name__ == 'State' or '_config' not in cls.__private_attributes__:
-                config = StateConfig()
-            else:
-                # This should not happen, but fallback to default
-                config = StateConfig()
-        
-        return config
-    
-    def _get_backend(self):
-        """Get persistence backend based on configuration."""        
-        config = self._get_config()
-        return config.persistence_backend
     
