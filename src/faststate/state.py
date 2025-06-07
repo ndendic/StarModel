@@ -124,8 +124,11 @@ async def _wrap_req_with_datastar(req: Request, params: Dict[str, inspect.Parame
     """Extended version of _wrap_req that supports Datastar parameters."""
     # Extract Datastar payload first
     datastar_payload = await _extract_datastar_payload(req)
-    if namespace:
-        datastar_payload = datastar_payload.get(namespace, {})
+    if namespace and namespace in datastar_payload.raw_data:
+    # Merge namespaced data into the top level while keeping the original structure
+        namespaced_data = datastar_payload.get(namespace, {})
+        merged_data = {**datastar_payload.raw_data, **namespaced_data}
+        datastar_payload = DatastarPayload(merged_data)
     
     # Process all parameters with Datastar support
     result = []
@@ -189,18 +192,22 @@ def _register_event_route(state_cls, method, config):
                     if item and (hasattr(item, '__ft__') or isinstance(item, FT)):  # FT component
                         fragments = [to_xml(item)]
                         if selector:
-                            yield SSE.merge_fragments(fragments, selector=selector, merge_mode=merge_mode)
+                            for fragment in fragments:
+                                yield SSE.merge_fragments(fragment, selector=selector, merge_mode=merge_mode)
                         else:
-                            yield SSE.merge_fragments(fragments, merge_mode=merge_mode)
+                            for fragment in fragments:
+                                yield SSE.merge_fragments(fragment, merge_mode=merge_mode)
             else:  # Regular return or None
                 if result and (hasattr(result, '__ft__') or isinstance(result, FT)):  # FT component
                     fragments = [to_xml(result)]
                     if selector:
-                        yield SSE.merge_fragments(fragments, selector=selector, merge_mode=merge_mode)
+                        for fragment in fragments:
+                            yield SSE.merge_fragments(fragment, selector=selector, merge_mode=merge_mode) 
                     else:
-                        yield SSE.merge_fragments(fragments, merge_mode=merge_mode)
+                        for fragment in fragments:
+                            yield SSE.merge_fragments(fragment, merge_mode=merge_mode)
         
-        return StreamingResponse(sse_stream(), media_type="text/event-stream", headers=SSE_HEADERS)
+        return StreamingResponse(sse_stream(), media_type="text/event-stream", headers=SSE_HEADERS) 
     
     # Register with APIRouter following FastHTML pattern
     rt(path, methods=methods, name=name, include_in_schema=include_in_schema, body_wrap=body_wrap)(event_handler)

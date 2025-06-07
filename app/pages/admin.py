@@ -116,7 +116,7 @@ def system_status(req: Request):
     System status page showing SSE connections, persistence stats, and more.
     """
     # Get SSE connection stats
-    
+    auth = req.session.get("user")
     # Get state cache stats
     from faststate.state import _state_cache
     cached_states = len(_state_cache)

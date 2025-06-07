@@ -21,3 +21,6 @@ build-backend = "hatchling.build"
 dev = [
     "monsterui>=1.0.21",
 ]
+
+[tool.uv.sources]
+datastar-py = { git = "https://github.com/starfederation/datastar.git", subdirectory = "sdk/python", rev = "develop" }

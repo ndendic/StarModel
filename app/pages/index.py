@@ -1,6 +1,7 @@
 from fasthtml.common import *
 from monsterui.all import *
 from faststate import *
+from pages.templates import app_template
 
 rt = APIRouter()
 
@@ -29,10 +30,12 @@ class MyState(State):
     @event(selector="#ticker-box", merge_mode="inner")
     def start_ticking(self):
         self.tick_count += 1
-        return H4("Tick #", Span(data_text=self.signal("tick_count")), cls="text-red-500")
+        # return H4("Tick #", Span(data_text=self.signal("tick_count")), cls="text-red-500")
+        return self.card()
     
     def card(self):
         return Div(
+            self,
             H2(f"{self.namespace} Card", cls=TextT.primary),
             H4("myStr: ", Span(data_text=MyState.myStr, cls=TextT.primary)),
             H4("myInt: ", Span(data_text=MyState.myInt, cls=TextT.primary)),
@@ -42,13 +45,13 @@ class MyState(State):
 
 
 @rt('/')
-def index(req: Request, sess: dict, auth: str = None):
+@app_template("Home")
+def index(req: Request):
     """
     Main page demonstrating session-scoped state with simple .get() method.
     Clean and explicit state resolution!
     """
-    if not auth:
-        auth = sess.get('auth', None)
+    auth = req.session.get("user")
     
     # Simple, explicit state resolution
     my_state = MyState.get(req)

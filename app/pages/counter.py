@@ -2,6 +2,7 @@ from fasthtml.common import *
 from monsterui.all import *
 from faststate import *
 import asyncio
+from pages.templates import app_template
 
 rt = APIRouter()
 
@@ -54,12 +55,13 @@ class CounterState(State):
 
 
 @rt('/counter')
-def global_counter(req: Request, sess: dict, auth: str = None):
+@app_template("Counter")
+def global_counter(req: Request):
     """
     Global counter demo with persistence and real-time synchronization.
     """
     counter = CounterState.get(req)
-    username = auth or sess.get('auth', 'Anonymous')
+    username = req.session.get("user") or "Anonymous"
     
     return Main(
         counter,
@@ -130,6 +132,7 @@ def global_counter(req: Request, sess: dict, auth: str = None):
             A("← Back to Home", href="/", cls="text-secondary hover:underline"),
             
             cls="container mx-auto p-8 max-w-3xl"
-        )
+        ),
+        id="content",
     )
 

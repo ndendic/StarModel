@@ -30,7 +30,7 @@ beforeware = Beforeware(
 )
 
 custom_theme_css = Link(rel="stylesheet", href="/css/custom_theme.css", type="text/css")
-monsterui_headers = Theme.claude.headers()
+monsterui_headers = Theme.claude.headers(apex_charts=True)
 
 app, rt = fast_app(
     static_path="assets",
