@@ -398,11 +398,11 @@ class MemoryStatePersistence(StatePersistenceBackend):
         """Clean up expired state entries from memory."""
         return self.cleanup_expired_sync()
     
-    def save_state_sync(self, key: str, state_data: Dict[str, Any], ttl: Optional[int] = None) -> bool:
+    def save_state_sync(self, state, ttl: Optional[int] = None) -> bool:
         """Save state to memory with optional TTL."""
         try:
-            self._data[key] = state_data.copy()
-            
+            key = state.id
+            self._data[key] = state            
             if ttl:
                 self._expiry[key] = time.time() + ttl
             elif key in self._expiry:

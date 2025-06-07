@@ -39,7 +39,7 @@ class DashboardState(State):
     
     def recent_sales_card(self):
         return Card(cls="col-span-3", id="recent-sales-card")(
-            Div(cls="space-y-8")(
+            Div(cls="space-y-8 px-4")(
                 *[
                     AvatarItem(n, e, d)
                     for (n, e, d) in (
@@ -54,16 +54,16 @@ class DashboardState(State):
     
     def sales_chart(self):
         return Div(id="sales-chart")(
-                  Apex_Chart(
-                        chart_type=ChartT.area,
-                        series=[
-                            {"name": "2024", "data": [sale.amount for sale in self.recent_sales]},
-                        ],
-                        categories=[sale.name for sale in self.recent_sales],
-                        fill={"type": "gradient", "gradient": {"shadeIntensity": 1, "opacityFrom": 0.4, "opacityTo": 0.1}},
-                        cls='max-w-md max-h-md',
-                  )
-              )
+                Apex_Chart(
+                    chart_type=ChartT.area,
+                    series=[
+                        {"name": "2024", "data": [sale.amount for sale in self.recent_sales]},
+                    ],
+                    categories=[sale.name for sale in self.recent_sales],
+                    fill={"type": "gradient", "gradient": {"shadeIntensity": 1, "opacityFrom": 0.4, "opacityTo": 0.1}},
+                    cls='max-w-md max-h-md',
+                )
+            ),
     
 def InfoCard(title, value, change):
     return Div(Card(Div(value), P(change, cls=TextPresets.muted_sm)), header=H4(title))
@@ -106,7 +106,7 @@ rt = APIRouter()
 @rt("/dashboard")
 @app_template("Dashboard")
 def dashboard(request):
-    state = DashboardState()
+    state = DashboardState.get(request)
     return Div(cls="space-y-4")(
         state,
         H2("Dashboard"),

@@ -9,7 +9,7 @@ class UserProfileState(State):
     """User-scoped state - persists across sessions for authenticated users."""
     model_config = {
         "arbitrary_types_allowed": True,
-        "faststate_scope": StateScope.SERVER_MEMORY,
+        "faststate_store": StateStore.SERVER_MEMORY,
         "faststate_auto_persist": True,
         "faststate_persistence_backend": memory_persistence,
         "faststate_ttl": 3600,

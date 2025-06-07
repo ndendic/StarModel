@@ -9,7 +9,7 @@ class GlobalSettingsState(State):
     """Global state - shared across all users (admin only)."""
     model_config = {
         "arbitrary_types_allowed": True,
-        "faststate_scope": StateScope.SERVER_MEMORY,
+        "faststate_store": StateStore.SERVER_MEMORY,
         "faststate_auto_persist": True,
         "faststate_persistence_backend": memory_persistence,
         "faststate_ttl": None,
