@@ -1,6 +1,7 @@
 import inspect
 import asyncio
 import json
+import time
 import uuid
 import urllib.parse
 from typing import Any, Dict, Optional
@@ -17,8 +18,6 @@ datastar_script = Script(src="https://cdn.jsdelivr.net/gh/starfederation/datasta
 
 rt = APIRouter()
 
-# Global state cache to ensure same instance for same ID
-_state_cache: Dict[str, 'State'] = {}
 
 class DatastarPayload:
     """Represents Datastar payload data that can be injected into event methods."""
@@ -91,33 +90,32 @@ async def _extract_datastar_payload(request: Request) -> DatastarPayload:
 async def _find_p_with_datastar(req: Request, arg: str, p, datastar_payload: DatastarPayload):
     """Extended version of FastHTML's _find_p that also supports Datastar parameters."""
     anno = p.annotation
-    
-    # Handle Datastar payload injection
-    if isinstance(anno, type) and issubclass(anno, DatastarPayload):
-        return datastar_payload
-    if anno is DatastarPayload:
-        return datastar_payload
-    if arg.lower() == 'datastar' and anno is inspect.Parameter.empty:
-        return datastar_payload
-    
-    
-    # If FastHTML didn't find the parameter, try Datastar payload
-    if datastar_payload and arg in datastar_payload:
-        value = datastar_payload[arg]
-        # Apply type conversion if needed
-        if anno != inspect.Parameter.empty:
-            from fasthtml.core import _fix_anno
-            try:
-                return _fix_anno(anno, value)
-            except Exception:
-                return value
-        return value
-    
+        
     try:
         result = await _find_p(req, arg, p) # Use FastHTML's original _find_p function
     except Exception:
         result = None
 
+    if result is None:
+        # Handle Datastar payload injection
+        if isinstance(anno, type) and issubclass(anno, DatastarPayload):
+            return datastar_payload
+        if anno is DatastarPayload:
+            return datastar_payload
+        if arg.lower() == 'datastar' and anno is inspect.Parameter.empty:
+            return datastar_payload
+                
+        if datastar_payload and arg in datastar_payload:
+            value = datastar_payload[arg]
+            # Apply type conversion if needed
+            if anno != inspect.Parameter.empty:
+                from fasthtml.core import _fix_anno
+                try:
+                    return _fix_anno(anno, value)
+                except Exception:
+                    return value
+            return value
+    
     return result
 
 async def _wrap_req_with_datastar(req: Request, params: Dict[str, inspect.Parameter], namespace: str = None):
@@ -173,7 +171,7 @@ def _register_event_route(state_cls, method, config):
             result = method(*method_params)
         
         # Auto-persist state changes if configured
-        if state.auto_persist and not state.scope.startswith("client_"):
+        if state.auto_persist and not state.store.startswith("client_"):
             state.save()
         
         # Handle async generators and regular returns
@@ -184,7 +182,7 @@ def _register_event_route(state_cls, method, config):
             if hasattr(result, '__aiter__'):  # Async generator
                 async for item in result:
                     # Auto-persist state changes after each yield if configured
-                    if state.auto_persist and not state.scope.startswith("client_"):
+                    if state.auto_persist and not state.store.startswith("client_"):
                         state.save()
                     
                     # Send updated state after each yield
@@ -295,12 +293,12 @@ def event(path=None, *, method="get", selector=None, merge_mode="morph", name=No
     
     return decorator
 
-class StateScope(StrEnum):
-    """Enumeration of persistence mechanisms supported by FastState."""
+class StateStore(StrEnum):
+    """Enumeration of state storage mechanisms supported by FastState."""
     CLIENT_SESSION = "client_session"    # Datastar sessionStorage
     CLIENT_LOCAL = "client_local"        # Datastar localStorage
     SERVER_MEMORY = "server_memory"      # MemoryStatePersistence
-    CUSTOM = "custom"        # RedisStatePersistence
+    CUSTOM = "custom"                    # Manual State Persistence Management
 
 class SignalDescriptor:
     """Return `$Model.field` on the class, real value on an instance."""
@@ -334,10 +332,10 @@ class State(BaseModel, metaclass=SignalModelMeta):
         "arbitrary_types_allowed": True,
         "namespace": None, # will set to class name if None
         "use_namespace": True, # whether to use namespaced signals
-        "scope": StateScope.SERVER_MEMORY,
+        "store": StateStore.SERVER_MEMORY,
         "auto_persist": True,
         "persistence_backend": memory_persistence,
-        "ttl": None,
+        "sync_with_client": True,
     }
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
@@ -363,9 +361,14 @@ class State(BaseModel, metaclass=SignalModelMeta):
         return self.__class__._get_config_value("use_namespace", True)
 
     @property
-    def scope(self):
-        """Get the scope for this state instance."""
-        return self.__class__._get_config_value("scope", StateScope.SERVER_MEMORY)
+    def store(self):
+        """Get the store for this state instance."""
+        return self.__class__._get_config_value("store", StateStore.SERVER_MEMORY)
+    
+    @property
+    def sync_with_client(self):
+        """Get the sync_with_client setting for this state instance."""
+        return self.__class__._get_config_value("sync_with_client", True)
     
     @property
     def auto_persist(self):
@@ -377,10 +380,6 @@ class State(BaseModel, metaclass=SignalModelMeta):
         """Get the persistence backend for this state instance."""
         return self.__class__._get_config_value("persistence_backend", memory_persistence)
     
-    @property
-    def ttl(self):
-        """Get the TTL for this state instance."""
-        return self.__class__._get_config_value("ttl", None)
 
     @property
     def signals(self) -> Dict[str, Any]:
@@ -418,88 +417,54 @@ class State(BaseModel, metaclass=SignalModelMeta):
     def PullSyncDiv(self):
         return Div({"data-on-online__window": self.sync(self.signals)}, id=f"{self.namespace}")
     
-    def save(self) -> bool:
+    def save(self, ttl: Optional[int] = None) -> bool:
         """Save state to configured backend."""
-        if self.scope.startswith("client_"):
-            return True  # Datastar handles client persistence
-        
-        if self.auto_persist:
-            return self.persistence_backend.save_state_sync(self.id, self.signals, self.ttl)
-        return True
+        if self.store.startswith("client_"):
+            return True  # Datastar handles client persistence        
+        # Save using configured persistence backend
+        return self.persistence_backend.save_state_sync(self, ttl)
+    
+    def _sync_from_client(self, req: Request):
+        """Sync state with client-side changes using datastar payload."""
+        if req and self.sync_with_client:
+            self.init_with_datastar(req)
     
     def delete(self) -> bool:
         """Delete state from configured backend."""
-        if self.scope.startswith("client_"):
+        if self.store.startswith("client_"):
             return True  # Cannot delete client storage from server
             
         return self.persistence_backend.delete_state_sync(self.id)
     
     def exists(self) -> bool:
         """Check if state exists in configured backend."""
-        if self.scope.startswith("client_"):
+        if self.store.startswith("client_"):
             return False  # Cannot check client storage from server
             
         return self.persistence_backend.exists_sync(self.id)
     
+    def init_with_datastar(self, req: Request, **kwargs) -> 'State':
+        """Initialize state instance with Datastar payload."""    
+        datastar = datastar_from_queryParams(req)    
+        for f in self.__class__.model_fields.keys():      
+            fns = self.__class__.__name__+"."+f  
+            if f in datastar:
+                setattr(self, f, datastar[f])
+            elif fns in datastar:
+                setattr(self, f, datastar[fns])
+        return self
+
     @classmethod
     def get(cls, req: Request, **kwargs) -> 'State':
-        """Get or create state instance with consistent ID."""
-        global _state_cache
-        
-        # Generate deterministic state ID using the class's custom logic
-        state_id = cls._generate_state_id(req, **kwargs)
-        
-        # Check cache first
-        cache_key = f"{cls.__name__}:{state_id}"
-        if cache_key in _state_cache:
-            cached_state = _state_cache[cache_key]
-            # Update with any client-side changes if applicable
-            if cached_state.scope.startswith("client_"):
-                datastar = datastar_from_queryParams(req)
-                if datastar:
-                    for f in cls.model_fields.keys():
-                        if f in datastar:
-                            setattr(cached_state, f, datastar[f])
-            return cached_state
-        
-        # Create new instance with the determined ID
-        instance_kwargs = {**kwargs, 'id': state_id}
-        
-        # Check if this class uses client-side scope (check default value)
-        default_scope = cls._get_config_value("scope", StateScope.SERVER_MEMORY)
-        if default_scope.startswith("client_"):
-            # Client-side: handle datastar loading
-            state = cls(req, **instance_kwargs)
-            datastar = datastar_from_queryParams(req)
-            if datastar:
-                for f in cls.model_fields.keys():
-                    if f in datastar:
-                        setattr(state, f, datastar[f])
-        else:
-            # Server-side: try to load from backend
-            default_backend = cls._get_config_value("persistence_backend", memory_persistence)
-            state_data = None
-            if hasattr(default_backend, 'load_state_sync'):
-                state_data = default_backend.load_state_sync(state_id)
-            
-            if state_data:
-                # Merge loaded data with instance kwargs, prioritizing loaded data
-                merged_kwargs = {**instance_kwargs, **state_data}
-                state = cls(req, **merged_kwargs)
-            else:
-                # Create new instance
-                state = cls(req, **instance_kwargs)
-                # Auto-persist new instance if configured
-                default_auto_persist = cls._get_config_value("auto_persist", True)
-                if default_auto_persist:
-                    state.save()
-        
-        # Cache the instance
-        _state_cache[cache_key] = state
-        return state
+        """Get cached state or create new."""
+        state_id = cls._get_id(req, **kwargs)
+        cached = memory_persistence._data.get(state_id)        
+        if cached and isinstance(cached, cls):
+            return cached
+        return cls(req, id=state_id, **kwargs)
     
     @classmethod
-    def _generate_state_id(cls, req: Request, **kwargs) -> str:
+    def _get_id(cls, req: Request, **kwargs) -> str:
         """Generate deterministic state ID. Override in subclasses for custom logic."""
         # Default: use class name + session-based ID
         if req and hasattr(req, 'cookies'):
@@ -508,17 +473,22 @@ class State(BaseModel, metaclass=SignalModelMeta):
             session_id = 'default'
         return f"{cls.__name__.lower()}_{session_id[:100]}"
     
+    @classmethod
+    def get_session_id(cls, req: Request, **kwargs) -> str:
+        """Legacy method - use _get_id instead."""
+        return cls._get_id(req, **kwargs)
+    
     def __ft__(self):
-        """Render with appropriate data-persist attributes for client-side scopes."""
+        """Render with appropriate data-persist attributes for client-side stores."""
         signals = json.dumps(self.signals)
         
-        if self.scope == StateScope.CLIENT_SESSION:
+        if self.store == StateStore.CLIENT_SESSION:
             return Div({"data-signals": signals,
                         "data-on-online__window": self.sync(),
                         "data-on-load": self.sync(),
                         "data-persist__session": True},
                         id=f"{self.namespace}")
-        elif self.scope == StateScope.CLIENT_LOCAL:
+        elif self.store == StateStore.CLIENT_LOCAL:
             return Div({"data-signals": signals,
                         "data-on-online__window": self.sync(),
                         "data-on-load": self.sync(),
@@ -527,18 +497,17 @@ class State(BaseModel, metaclass=SignalModelMeta):
         else:
             return Div({"data-signals": signals}, id=f"{self.namespace}")
     
-    def __init__(self, request: Request = None, **kwargs):
+    def __init__(self, req: Request = None, **kwargs):
         super().__init__(**kwargs)
-        # Only override ID if not already set by class default or kwargs
-        if 'id' not in kwargs and not hasattr(self, 'id'):
-            if request:
-                datastar = datastar_from_queryParams(request)
-                if 'id' in datastar:
-                    self.id = datastar['id']
-                else:
-                    self.id = str(uuid.uuid4())
-            else:
-                self.id = str(uuid.uuid4())
+        if not self.id:
+            self.id = self._get_id(req, **kwargs)
+        
+        # Sync with client FIRST - get latest state
+        self._sync_from_client(req)
+        
+        # Finally auto-save the synced state
+        if self.auto_persist:
+            self.save()
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)

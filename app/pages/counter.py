@@ -10,7 +10,7 @@ class CounterState(State):
     """Enhanced counter with persistence and real-time sync."""
     model_config = {
         "arbitrary_types_allowed": True,
-        "faststate_scope": StateScope.SERVER_MEMORY,
+        "faststate_store": StateStore.SERVER_MEMORY,
         "faststate_auto_persist": True,
         "faststate_persistence_backend": memory_persistence,
         "faststate_ttl": 10,

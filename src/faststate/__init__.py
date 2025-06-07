@@ -4,7 +4,7 @@ FastState - Reactive State Management for FastHTML
 A powerful state management system that integrates with FastHTML's dependency injection
 to provide automatic state management with scoping and real-time updates.
 """
-from .state import State, event, datastar_script, DatastarPayload, StateScope, _state_cache
+from .state import State, event, datastar_script, DatastarPayload, StateStore
 from .state import rt as states_rt
 # from .fasthtml_integration import (
 #     initialize_faststate, create_state_middleware, get_state_info
@@ -22,9 +22,8 @@ __all__ = [
     'datastar_script',
     'DatastarPayload',
     'states_rt',
-    '_state_cache',
     # Registry
-    'StateScope',
+    'StateStore',
     
     # Persistence layer
     'StatePersistenceBackend',
