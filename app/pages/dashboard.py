@@ -69,8 +69,8 @@ def InfoCard(title, value, change):
     return Div(Card(Div(value), P(change, cls=TextPresets.muted_sm)), header=H4(title))
 
 
-rev = InfoCard("Total Revenue", H3("$",Span(data_text=DashboardState.total_revenue)), "+20.1% from last month")
-sub = InfoCard("Subscriptions",H3(data_text=DashboardState.sales), "+180.1% from last month")
+rev = InfoCard("Total Revenue", H3("$",Span(data_text=DashboardState.total_revenue_signal)), "+20.1% from last month")
+sub = InfoCard("Subscriptions",H3(data_text=DashboardState.sales_signal), "+180.1% from last month")
 sal = InfoCard("Sales", H3("+12,234"), "+19% from last month")
 act = InfoCard("Active Now", H3("+573"), "+201 since last hour")
 

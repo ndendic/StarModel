@@ -75,12 +75,12 @@ def global_counter(req: Request):
             Div(
                 Div(
                     Div(
-                        Span(data_text=CounterState.count, cls="text-7xl font-bold text-primary"),
+                        Span(data_text=CounterState.count_signal, cls="text-7xl font-bold text-primary"),
                         cls="text-center mb-4"
                     ),
-                    Div("Total updates: ", Span(data_text=CounterState.update_count), cls="font-mono text-secondary"),
+                    Div("Total updates: ", Span(data_text=CounterState.update_count_signal), cls="font-mono text-secondary"),
                     Div(f"Current user: {username}", cls="font-mono text-secondary"),
-                    Div("Last updated by: ", Span(data_text=CounterState.last_updated_by), cls="font-mono text-secondary mb-2"),
+                    Div("Last updated by: ", Span(data_text=CounterState.last_updated_by_signal), cls="font-mono text-secondary mb-2"),
                     Div(id="message", cls="font-mono text-secondary mb-2"),
                     cls="p-6 border border-primary rounded mb-6 text-center"
                 ),

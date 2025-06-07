@@ -11,6 +11,7 @@ from datastar_py import ServerSentEventGenerator as SSE
 from fasthtml.common import *
 from fasthtml.core import APIRouter, StreamingResponse, _find_p, parse_form
 from pydantic import BaseModel, Field
+from pydantic_core import PydanticUndefined
 from pydantic._internal._model_construction import ModelMetaclass
 
 from .persistence import StatePersistenceBackend, memory_persistence
@@ -324,7 +325,7 @@ class SignalModelMeta(ModelMetaclass):
         # For each declared field, replace the stub Pydantic left in the
         # class __dict__ with our custom descriptor
         for field_name in cls.model_fields:
-            setattr(cls, field_name, SignalDescriptor(field_name))
+            setattr(cls, f"{field_name}_signal", SignalDescriptor(field_name))
 
 class State(BaseModel, metaclass=SignalModelMeta):
     """Base class for all state classes."""
@@ -338,7 +339,7 @@ class State(BaseModel, metaclass=SignalModelMeta):
         "sync_with_client": True,
     }
 
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    id: str = Field(primary_key=True)
 
     @classmethod
     def _get_config_value(cls, key: str, default=None):
@@ -380,7 +381,6 @@ class State(BaseModel, metaclass=SignalModelMeta):
         """Get the persistence backend for this state instance."""
         return self.__class__._get_config_value("persistence_backend", memory_persistence)
     
-
     @property
     def signals(self) -> Dict[str, Any]:
         if self.use_namespace:
@@ -406,9 +406,7 @@ class State(BaseModel, metaclass=SignalModelMeta):
 
     @event
     async def sync(self, datastar):    
-        for f in self.__class__.model_fields.keys():
-            if f in datastar:
-                setattr(self, f, datastar[f])
+        self.set_from_request(datastar)
         return self.signals
     
     def LiveDiv(self, heartbeat: float = 0):
@@ -427,7 +425,7 @@ class State(BaseModel, metaclass=SignalModelMeta):
     def _sync_from_client(self, req: Request):
         """Sync state with client-side changes using datastar payload."""
         if req and self.sync_with_client:
-            self.init_with_datastar(req)
+            self.set_from_request(req)
     
     def delete(self) -> bool:
         """Delete state from configured backend."""
@@ -443,7 +441,7 @@ class State(BaseModel, metaclass=SignalModelMeta):
             
         return self.persistence_backend.exists_sync(self.id)
     
-    def init_with_datastar(self, req: Request, **kwargs) -> 'State':
+    def set_from_request(self, req: Request, **kwargs) -> 'State':
         """Initialize state instance with Datastar payload."""    
         datastar = datastar_from_queryParams(req)    
         for f in self.__class__.model_fields.keys():      
@@ -464,7 +462,7 @@ class State(BaseModel, metaclass=SignalModelMeta):
         return cls(req, id=state_id, **kwargs)
     
     @classmethod
-    def _get_id(cls, req: Request, **kwargs) -> str:
+    def get_session_id(cls, req: Request, **kwargs) -> str:
         """Generate deterministic state ID. Override in subclasses for custom logic."""
         # Default: use class name + session-based ID
         if req and hasattr(req, 'cookies'):
@@ -474,9 +472,12 @@ class State(BaseModel, metaclass=SignalModelMeta):
         return f"{cls.__name__.lower()}_{session_id[:100]}"
     
     @classmethod
-    def get_session_id(cls, req: Request, **kwargs) -> str:
+    def _get_id(cls, req: Request,call_default_factory=True, **kwargs) -> str:
         """Legacy method - use _get_id instead."""
-        return cls._get_id(req, **kwargs)
+        id = cls.model_fields['id'].get_default(call_default_factory=call_default_factory)
+        if id is PydanticUndefined:
+            return cls.get_session_id(req, **kwargs)
+        return id
     
     def __ft__(self):
         """Render with appropriate data-persist attributes for client-side stores."""

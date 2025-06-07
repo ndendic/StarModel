@@ -37,9 +37,9 @@ class MyState(State):
         return Div(
             self,
             H2(f"{self.namespace} Card", cls=TextT.primary),
-            H4("myStr: ", Span(data_text=MyState.myStr, cls=TextT.primary)),
-            H4("myInt: ", Span(data_text=MyState.myInt, cls=TextT.primary)),
-            H4("tick_count: ", Span(data_text=MyState.tick_count, cls=TextT.primary)),
+            H4("myStr: ", Span(data_text=MyState.myStr_signal, cls=TextT.primary)),
+            H4("myInt: ", Span(data_text=MyState.myInt_signal, cls=TextT.primary)),
+            H4("tick_count: ", Span(data_text=MyState.tick_count_signal, cls=TextT.primary)),
             cls="bg-secondary-foreground p-4 rounded mb-4"
         )
 
