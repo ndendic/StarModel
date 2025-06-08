@@ -79,7 +79,7 @@ def realtime_chat(req: Request, sess: dict, auth: str = None):
                 
                 # Chat state display
                 chat,
-                chat.LiveDiv(heartbeat=0),
+                chat.PollDiv(),
                 
                 # Chat info
                 Div(

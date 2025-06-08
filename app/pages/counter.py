@@ -19,10 +19,7 @@ class CounterState(State):
     count: int = 0
     last_updated_by: str = ""
     update_count: int = 0
-    
-    @classmethod
-    def _generate_state_id(cls, req, **kwargs):
-        return "global_counter"  # Fixed ID for global access
+    id: str = "global_counter"
     
     @event(method="post")
     async def increment(self, amount: int = 1, user: str = "Anonymous"):      
@@ -65,7 +62,7 @@ def global_counter(req: Request):
     
     return Main(
         counter,
-        counter.LiveDiv(heartbeat=0),
+        counter.PollDiv(),
         Div(
             H1("🔢 Global Counter Demo", cls="text-3xl font-bold mb-6"),
             P("This counter is shared globally across all users and persisted to database. Open multiple tabs to see the counter update in real-time.", 

@@ -405,12 +405,16 @@ class State(BaseModel, metaclass=SignalModelMeta):
             await asyncio.sleep(heartbeat)
 
     @event
+    async def poll(self):
+        pass
+
+    @event
     async def sync(self, datastar):    
         self.set_from_request(datastar)
         return self.signals
     
-    def LiveDiv(self, heartbeat: float = 0):
-        return Div({"data-on-load": self.live(heartbeat)}, id=f"{self.namespace}")
+    def PollDiv(self, heartbeat: float = 0):
+        return Div({"data-on-interval__duration.1s.leading": self.poll()}, id=f"{self.namespace}")
 
     def PullSyncDiv(self):
         return Div({"data-on-online__window": self.sync(self.signals)}, id=f"{self.namespace}")
