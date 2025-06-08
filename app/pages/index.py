@@ -58,7 +58,7 @@ def index(req: Request):
     return Main(
         # Welcome message
         Div(
-            H1("🚀 BackState Demo", cls="text-4xl font-bold text-center mb-6"),
+            H1("🚀 FastModel Demo", cls="text-4xl font-bold text-center mb-6"),
             P("Showcasing automatic dependency injection with different state scopes", 
                 cls="text-center mb-8"),
             cls="mb-8"

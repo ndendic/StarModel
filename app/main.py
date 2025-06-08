@@ -6,7 +6,7 @@ from route_collector import add_routes
 def auth_beforeware(req, sess):
     """
     Simple authentication beforeware using FastHTML/Starlette pattern.
-    This demonstrates how to handle auth outside of BackState.
+    This demonstrates how to handle auth outside of FastModel.
     """
     # Simple demo auth - in real apps, integrate with your auth system
     auth = req.scope["user"] = sess.get("auth", None)
@@ -52,7 +52,7 @@ states_rt.to_app(app)
 
 if __name__ == "__main__":
     print("\n" + "="*60)
-    print("🎉 BackState Demo Application Starting!")
+    print("🎉 FastModel Demo Application Starting!")
     print("="*60)
     
     serve(reload=True)

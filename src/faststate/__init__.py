@@ -1,5 +1,5 @@
 """
-BackState - Reactive State Management for FastHTML
+FastModel - Reactive State Management for FastHTML
 
 A powerful state management system that integrates with FastHTML's dependency injection
 to provide automatic state management with scoping and real-time updates.
