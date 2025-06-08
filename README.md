@@ -24,7 +24,7 @@ FastState makes building reactive web applications incredibly simple by creating
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/FastState.git
+git clone https://github.com/your-usernamendendic/FastState.git
 cd FastState
 
 # Install dependencies using uv
