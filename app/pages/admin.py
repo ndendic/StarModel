@@ -150,7 +150,7 @@ def system_status(req: Request):
                     Div(
                         Div(f"Session ID: {req.cookies.get('session_', 'auto-generated')[:100]}", cls="mb-2 font-mono text-sm"),
                         Div(f"Authentication: {auth or 'Not authenticated'}", cls="mb-2 font-mono text-sm"),
-                        Div("FastState Version: Enhanced with SSE", cls="mb-2 font-mono text-sm"),
+                        Div("BackState Version: Enhanced with SSE", cls="mb-2 font-mono text-sm"),
                         cls="bg-gray-50 p-4 rounded mb-6"
                     ),
                     cls="mb-6"

@@ -1,5 +1,5 @@
 """
-FastState Persistence Layer
+BackState Persistence Layer
 
 This module provides optional state persistence with Redis and database backends
 for production use. States can be automatically persisted and loaded based on

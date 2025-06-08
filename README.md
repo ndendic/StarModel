@@ -1,12 +1,12 @@
-# FastState
+# BackState 🚧 (Under testing)
 
 **Simplified Reactive State Management for FastHTML**
 
 A reactive state management system for Python web applications that combines FastHTML and Datastar to enable building interactive UIs entirely in Python - no JavaScript required.
 
-## What is FastState?
+## What is BackState?
 
-FastState makes building reactive web applications incredibly simple by creating Python classes that automatically synchronize with the frontend via Server-Sent Events (SSE). It bridges the gap between server-side Python logic and client-side reactivity with an elegant, streamlined architecture.
+BackState makes building reactive web applications incredibly simple by creating Python classes that automatically synchronize with the frontend via Server-Sent Events (SSE). It bridges the gap between server-side Python logic and client-side reactivity with an elegant, streamlined architecture.
 
 ### Key Features
 
@@ -24,8 +24,8 @@ FastState makes building reactive web applications incredibly simple by creating
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-usernamendendic/FastState.git
-cd FastState
+git clone https://github.com/ndendic/BackState.git
+cd BackState
 
 # Install dependencies using uv
 uv sync
@@ -87,7 +87,7 @@ def home(req: Request):
 
 ## FastHTML Integration
 
-Setting up FastState with your FastHTML app is simple:
+Setting up BackState with your FastHTML app is simple:
 
 ```python
 from fasthtml.common import *
@@ -104,9 +104,9 @@ app, rt = fast_app(
 # Add your page routes
 @rt('/')
 def home(req: Request):
-    return Main(H1("Welcome to FastState!"))
+    return Main(H1("Welcome to BackState!"))
 
-# Add FastState routes (automatically registers @event methods)
+# Add BackState routes (automatically registers @event methods)
 states_rt.to_app(app)
 
 if __name__ == "__main__":
@@ -126,7 +126,7 @@ The magic happens through:
 
 ## Architecture
 
-FastState combines three powerful technologies:
+BackState combines three powerful technologies:
 
 - **FastHTML**: Python-to-HTML framework for server-side rendering and routing
 - **Datastar**: Lightweight (~15KB) frontend library for reactivity via SSE
@@ -183,7 +183,7 @@ class PersistentState(State):
 
 ## Real-time Features
 
-FastState includes powerful real-time capabilities:
+BackState includes powerful real-time capabilities:
 
 ```python
 class LiveCounter(State):
@@ -294,9 +294,9 @@ def chat_page(req: Request):
     )
 ```
 
-## Why FastState Makes FastHTML + Datastar Easy
+## Why BackState Makes FastHTML + Datastar Easy
 
-FastState eliminates the complexity of integrating FastHTML with Datastar by providing:
+BackState eliminates the complexity of integrating FastHTML with Datastar by providing:
 
 ### 🔧 **Zero Configuration**
 ```python
@@ -358,7 +358,7 @@ Visit the different pages to see how easy it is to build reactive web apps entir
 
 ## Research and Development
 
-FastState emerged from research into combining FastHTML's server-side approach with modern reactive patterns. The goal is to provide a React-like developer experience using only Python, leveraging web standards (SSE, HTML) instead of complex JavaScript frameworks.
+BackState emerged from research into combining FastHTML's server-side approach with modern reactive patterns. The goal is to provide a React-like developer experience using only Python, leveraging web standards (SSE, HTML) instead of complex JavaScript frameworks.
 
 ## Contributing
 
@@ -368,7 +368,7 @@ This project is in active development. Contributions, feedback, and ideas are we
 - Suggest new features  
 - Contribute examples
 - Improve documentation
-- Share your FastState applications
+- Share your BackState applications
 
 ## License
 
