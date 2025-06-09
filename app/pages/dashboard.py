@@ -5,8 +5,8 @@ from monsterui.all import *
 from monsterui.franken import Grid as Grd
 from pages.templates import app_template
 from starmodel import State, event
-from .components.charts import Apex_Chart, ChartT
-from pydantic import BaseModel
+from .components.charts import Apex_Chart, ChartT, construct_script
+from pydantic import BaseModel, computed_field
 
 class Sale(BaseModel):
     name: str
@@ -20,6 +20,12 @@ class DashboardState(State):
     active_now: int = 0
     total_revenue: int = 0
     recent_sales: List[Sale] = []
+
+    @computed_field
+    @property
+    def pct_change(self) -> str:
+        change = 100 * (self.recent_sales[-1].amount - self.recent_sales[-2].amount) / self.recent_sales[-2].amount if len(self.recent_sales) > 1 else 0
+        return f"{change:.2f}%"
     
     @event
     async def add_sales(self, amount: int = 0, name: str = "Unknown", email: str = "Unknown"):
@@ -52,26 +58,24 @@ class DashboardState(State):
         )
     
     def sales_chart(self):
-        return Div(id="sales-chart")(
-                Apex_Chart(
+        script = construct_script(
                     chart_type=ChartT.area,
                     series=[
                         {"name": "2024", "data": [sale.amount for sale in self.recent_sales]},
                     ],
                     categories=[sale.name for sale in self.recent_sales],
                     fill={"type": "gradient", "gradient": {"shadeIntensity": 1, "opacityFrom": 0.4, "opacityTo": 0.1}},
-                    cls='max-w-md max-h-md',
                 )
-            ),
+        return script
     
 def InfoCard(title, value, change):
-    return Div(Card(Div(value), P(change, cls=TextPresets.muted_sm)), header=H4(title))
+    return Div(Card(Div(value), P(change, cls=TextPresets.muted_sm), header=H4(title)))
 
 
-rev = InfoCard("Total Revenue", H3("$",Span(data_text=DashboardState.total_revenue_signal)), "+20.1% from last month")
-sub = InfoCard("Subscriptions",H3(data_text=DashboardState.sales_signal), "+180.1% from last month")
-sal = InfoCard("Sales", H3("+12,234"), "+19% from last month")
-act = InfoCard("Active Now", H3("+573"), "+201 since last hour")
+rev = InfoCard("Total Revenue", H3("$",Span(data_text=DashboardState.total_revenue_signal)), Span(Span(data_text="$DashboardState.pct_change")," from last sales"))
+sub = InfoCard("Subscriptions",H3(data_text=DashboardState.sales_signal), Span(Span(data_text="$DashboardState.pct_change")," from last month"))
+sal = InfoCard("Sales", H3("$",Span(data_text=DashboardState.total_revenue_signal)), Span(Span(data_text="$DashboardState.pct_change")," from last month"))
+act = InfoCard("Active Now", H3(data_text=DashboardState.sales_signal), Span(Span(data_text="$DashboardState.pct_change")," from last hour"))
 
 # %% ../example_dashboard.ipynb
 top_info_row = Grd(rev, sub, sal, act, cols_min=1, cols_max=4)
@@ -125,13 +129,15 @@ def dashboard(request):
                         H3("Overview to show here..."),
                         Div(id="sales-chart")(
                             Apex_Chart(
+                                construct_script(
                                   chart_type=ChartT.area,
                                   series=[
                                       {"name": "2024", "data": [sale.amount for sale in state.recent_sales]},
-                                  ],
-                                  categories=[sale.name for sale in state.recent_sales],
-                                  fill={"type": "gradient", "gradient": {"shadeIntensity": 1, "opacityFrom": 0.4, "opacityTo": 0.1}},
-                                  cls='max-w-md max-h-md',
+                                    ],
+                                    categories=[sale.name for sale in state.recent_sales],
+                                    fill={"type": "gradient", "gradient": {"shadeIntensity": 1, "opacityFrom": 0.4, "opacityTo": 0.1}},
+                                ),
+                                cls='max-h-md',
                             )
                         ),
                         Form(

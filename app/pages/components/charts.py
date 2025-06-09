@@ -38,8 +38,7 @@ def _deep_merge(a: Dict, b: Dict) -> Dict:
             out[k] = deepcopy(v)
     return out
 
-def Apex_Chart(
-    *,
+def construct_script(*,
     series: Union[List[Dict], List[float]],  # Data to plot. For axis charts, pass a list of series-objects; for pie/donut/radialBar, pass a flat list of values. See Apex “Working with Data” docs. :contentReference[oaicite:turn0search11]{index=0}
     chart_type: ChartT = ChartT.line,        # One of Apex’s supported chart types (line, area, bar, pie, donut, heatmap, etc.). :contentReference[oaicite:turn0search1]{index=1}
     categories: List[str] | None = None,     # X-axis categories for axis charts (ignored by pie/donut). :contentReference[oaicite:turn0search2]{index=2}
@@ -52,14 +51,8 @@ def Apex_Chart(
     curve: Literal["smooth", "straight", "stepline"] = "smooth",  # Stroke curve style for line/area. :contentReference[oaicite:turn0search9]{index=9}
     stroke_width: int = 2,                   # Width (px) of line/area strokes. :contentReference[oaicite:turn0search9]{index=10}
     colors: List[str] | None = None,         # Palette array or callback for series/points. :contentReference[oaicite:turn0search10]{index=11}
-    cls: str = '',                           # Extra CSS classes for the outer <div>. (Utility parameter, no Apex reference.)
-    **extra_options,                         # Arbitrary ApexCharts options to deep-merge over the defaults.
-) -> Div:
-    """
-    Build a Div that renders an ApexCharts graph.
-    All boolean parameters default to *False* (or *None*) to avoid surprising side-effects; pass ``True`` to opt-in.
-    Any key you pass via ``extra_options`` overrides the baked-in defaults without losing the design-system styles.   
-    """
+    **extra_options,
+    ) -> Script:
     base = {
         "series": series,
         "chart": {
@@ -91,4 +84,16 @@ def Apex_Chart(
         base.setdefault("plotOptions", {}).setdefault("bar", {})["distributed"] = True
 
     merged = _deep_merge(base, extra_options)
-    return Div(Uk_chart(Script(json.dumps(merged, separators=(",", ":")), type="application/json")), cls=stringify(cls))
+    return Script(json.dumps(merged, separators=(",", ":")), type="application/json", id="chart-script")
+
+
+def Apex_Chart(script: Script,       # Palette array or callback for series/points. :contentReference[oaicite:turn0search10]{index=11}
+    cls: str = '',                           # Extra CSS classes for the outer <div>. (Utility parameter, no Apex reference.)
+) -> Div:
+    """
+    Build a Div that renders an ApexCharts graph.
+    All boolean parameters default to *False* (or *None*) to avoid surprising side-effects; pass ``True`` to opt-in.
+    Any key you pass via ``extra_options`` overrides the baked-in defaults without losing the design-system styles.   
+    """
+
+    return Div(Uk_chart(script, reactive=True), cls=stringify(cls))
