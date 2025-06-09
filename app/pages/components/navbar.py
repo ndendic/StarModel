@@ -33,7 +33,6 @@ hotkeys = [
     ("Profile", "⇧⌘P", "/user/profile"),
     ("Billing", "⌘B"),
     ("Settings", "⌘S"),
-    # ("New Team", ""),
     ("Logout", "", "/auth/logout", False),
 ]
 
@@ -94,24 +93,6 @@ def DropDownNavContainer(
     )
 
 
-# def avatar_dropdown(request):
-#     user_data = request.session.get("user")
-#     if user_data:
-#         user_data = json.loads(user_data)
-#         user = User.get(user_data["id"])
-#         if user:
-#             return Div(
-#                 Avatar(user.avatar_url, 8, 8)
-#                 if user.avatar_url
-#                 else DiceBearAvatar("Destiny", 8, 8),
-#                 DropDownNavContainer(
-#                     NavHeaderLi(user.full_name, NavSubtitle(user.email)),
-#                     *[NavCloseLi(*hk) for hk in hotkeys],
-#                 ),
-#                 cls="hidden lg:block",
-#             )
-#     return None
-
 
 def SidebarToggle():
     return Button(
@@ -124,11 +105,7 @@ def SidebarToggle():
 
 nav_items = [
     ("Home", "/"),
-    ("Dashboard", "/dashboard"),
-    ("Blog", "/blog"),
-    ("Documentation", "/docs"),
-    ("Playground", "/playground"),
-    ("Contact", "/contact"),
+    ("Dashboard", "/dashboard")
 ]
 
 

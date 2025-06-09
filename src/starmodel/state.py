@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from pydantic_core import PydanticUndefined
 from pydantic._internal._model_construction import ModelMetaclass
 
-from .persistence import StatePersistenceBackend, memory_persistence
+from .persistence import memory_persistence
 datastar_script = Script(src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.0-beta.11/bundles/datastar.js", type="module")
 
 rt = APIRouter()
@@ -325,6 +325,8 @@ class SignalModelMeta(ModelMetaclass):
         # For each declared field, replace the stub Pydantic left in the
         # class __dict__ with our custom descriptor
         for field_name in cls.model_fields:
+            setattr(cls, f"{field_name}_signal", SignalDescriptor(field_name))
+        for field_name in cls.model_computed_fields:
             setattr(cls, f"{field_name}_signal", SignalDescriptor(field_name))
 
 class State(BaseModel, metaclass=SignalModelMeta):
