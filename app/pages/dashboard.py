@@ -1,4 +1,3 @@
-
 from fasthtml.common import *
 from fasthtml.core import APIRouter
 from fasthtml.svg import *

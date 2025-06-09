@@ -2,14 +2,15 @@ from fasthtml.common import *
 from monsterui.all import *
 from starmodel import *
 from pages.templates import app_template
+from datastar_py import attribute_generator as data
 
 rt = APIRouter()
 
 class MyState(State):
     """Session-scoped state - each user session gets its own instance."""
     myInt: int = 0
-    myStr: str = "Hello"
-    tick_count: int = 0
+    myStr: str = "Hello from StarModel"
+    myList: list = []
 
     @event
     def increment(self, amount: int):
@@ -28,9 +29,8 @@ class MyState(State):
         self.myStr = myStr
         
     @event(selector="#ticker-box", merge_mode="inner")
-    def start_ticking(self):
-        self.tick_count += 1
-        # return H4("Tick #", Span(data_text=self.signal("tick_count")), cls="text-red-500")
+    def add_to_list(self, item: str):
+        self.myList.append(item)
         return self.card()
     
     def card(self):
@@ -39,7 +39,7 @@ class MyState(State):
             H2(f"{self.namespace} Card", cls=TextT.primary),
             H4("myStr: ", Span(data_text=MyState.myStr_signal, cls=TextT.primary)),
             H4("myInt: ", Span(data_text=MyState.myInt_signal, cls=TextT.primary)),
-            H4("tick_count: ", Span(data_text=MyState.tick_count_signal, cls=TextT.primary)),
+            H4("myList: ", Span(data_text=MyState.myList_signal if len(MyState.myList_signal) > 0 else "Empty", cls=TextT.primary)),
             cls="bg-secondary-foreground p-4 rounded mb-4"
         )
 
@@ -51,8 +51,6 @@ def index(req: Request):
     Main page demonstrating session-scoped state with simple .get() method.
     Clean and explicit state resolution!
     """
-    auth = req.session.get("user")
-    
     # Simple, explicit state resolution
     my_state = MyState.get(req)
     return Main(
@@ -65,26 +63,18 @@ def index(req: Request):
         ),
         
         # State information
+        H2("📊 Current State Info", cls="text-2xl font-bold mb-4"),
         Div({"data-persist__session":True}),
-        my_state.card(),  # Uses __ft__ method for rendering
-        Div(
-            H2("📊 Current State Info", cls="text-2xl font-bold mb-4"),
-            Div(
-                Div(f"Session ID: {req.cookies.get('session_', 'auto-generated')[:100]}", cls="font-mono text-sm"),
-                Div(f"Auth: {auth or 'Not authenticated'}", cls="font-mono text-sm"),
-                Div(f"State ID: {my_state.id}", cls="font-mono text-sm"),
-                cls="bg-gray-100 p-4 rounded mb-6"
-            ),
-            cls="mb-8"
-        ),
+        my_state.card(),  # Uses __ft__ method for rendering       
                 
         # Interactive controls
         Div(
             H3("🎮 Interactive Controls", cls="text-xl font-bold mb-4"),
+            FormLabel("Set myStr"),
             Input(data_bind=my_state.signal("myStr"), data_on_change=MyState.set_myStr(), 
                     cls="border rounded px-3 py-2 mb-4 w-full", placeholder="Edit text..."),
                     
-            H4("Counter Controls", cls="font-bold mb-2"),
+            H4("myInt Controls", cls="font-bold mb-2"),
             Div(
                 Button("- Decrease", data_on_click=MyState.decrement(1), 
                         cls="bg-red-500 text-white px-4 py-2 rounded mr-2"),
@@ -94,11 +84,9 @@ def index(req: Request):
                         cls="bg-green-500 text-white px-4 py-2 rounded"),
                 cls="mb-4"
             ),
-            
-            H4("Ticker Demo", cls="font-bold mb-2"),
-            Div(id="ticker-box", cls="bg-yellow-50 p-4 rounded mb-4 min-h-[60px]"),
-            Button("Start Tick", data_on_click=MyState.start_ticking(), 
-                    cls="bg-blue-500 text-white px-4 py-2 rounded"),
+            FormLabel("Add to myList"),
+            Input(data_bind="$item", data_on_change=MyState.add_to_list(), 
+                    cls="border rounded px-3 py-2 mb-4 w-full", placeholder="Add some item.."),
             cls="mb-8"
         ),
         
