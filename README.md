@@ -223,10 +223,10 @@ class UserProfile(State):
 
 ## Other Helpful Resources
 You can try to combine this library with other FastHTML/Datastar/Pydantic helper libraries for even better dev experience. Here are some of them: 
-[ft-datastar](https://github.com/banditburai/ft-datastar) 
-[datastar_py attribute helpers](https://github.com/starfederation/datastar/tree/develop/sdk/python)
-[fh-pydantic-form](https://github.com/Marcura/fh-pydantic-form)
-[FastSQLModel](https://github.com/ndendic/FastSQLModel)
+ - [ft-datastar](https://github.com/banditburai/ft-datastar)
+ - [datastar_py attribute helpers](https://github.com/starfederation/datastar/tree/develop/sdk/python)
+ - [fh-pydantic-form](https://github.com/Marcura/fh-pydantic-form)
+ - [FastSQLModel](https://github.com/ndendic/FastSQLModel)
 
 
 ## Demo Application
