@@ -30,7 +30,7 @@ beforeware = Beforeware(
 )
 
 custom_theme_css = Link(rel="stylesheet", href="/css/custom_theme.css", type="text/css")
-monsterui_headers = Theme.claude.headers(apex_charts=True)
+monsterui_headers = Theme.zinc.headers(apex_charts=True)
 
 app, rt = fast_app(
     static_path="assets",
@@ -43,7 +43,7 @@ app, rt = fast_app(
         custom_theme_css,
         datastar_script,
     ),
-    htmlkw=dict(cls="bg-surface-light data-theme-claude dark:bg-surface-dark bg-background font-sans antialiased"),
+    htmlkw=dict(cls="bg-surface-light uk-theme-claude dark:bg-surface-dark bg-background font-sans antialiased"),
 )
 
 add_routes(app)

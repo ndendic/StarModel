@@ -1,13 +1,18 @@
+import asyncio
 from fasthtml.common import *
 from monsterui.all import *
 from starmodel import *
 
+custom_theme_css = Link(rel="stylesheet", href="app/assets/css/custom_theme.css", type="text/css")
+
 app, rt = fast_app(
     htmx=False,
     hdrs=(
-        Theme.zinc.headers(),
+        Theme.zinc.headers(radii=ThemeRadii.md),
         datastar_script,
+        custom_theme_css,
     ),
+    htmlkw=dict(cls="bg-surface-light uk-theme-claude dark:bg-surface-dark bg-background font-sans antialiased"),
 )
 
 class Counter(State):
@@ -25,7 +30,11 @@ class Counter(State):
         self.update_count += 1
 
     @event
-    def reset(self):
+    async def reset(self):
+        while self.count > 0:
+            self.count -= 1
+            yield self.count
+            await asyncio.sleep(0.04)
         self.count = 0
         self.update_count += 1
 
