@@ -21,48 +21,92 @@ uv sync
 python app/main.py  # Visit http://localhost:5001
 ```
 
+or install package like
+
+```bash
+pip install git+https://github.com/ndendic/StarModel.git
+```
+
 ## Entity-Centric Development
 
+Below is full example you can run (uses MonsterUI for styling)
 ```python
-from starmodel import State, event
+from fasthtml.common import *
+from monsterui.all import *
+from starmodel import *
 
-# Define your entity - data + behavior in one place
-class TodoList(State):
-    items: list[str] = []
-    completed: list[bool] = []
+app, rt = fast_app(
+    htmx=False,
+    hdrs=(
+        Theme.zinc.headers(),
+        datastar_script,
+    ),
+)
+
+class Counter(State):
+    count: int = 0
+    update_count: int = 0
     
     @event
-    def add_item(self, text: str):
-        self.items.append(text)
-        self.completed.append(False)
-    
-    @event  
-    def toggle_item(self, index: int):
-        if 0 <= index < len(self.completed):
-            self.completed[index] = not self.completed[index]
+    def increment(self, amount: int = 1):
+        self.count += amount
+        self.update_count += 1
 
-# Use in FastHTML routes
-@rt('/todos')
-def todos_page(req: Request):
-    todos = TodoList.get(req)  # Auto-persisted per session
-    
+    @event
+    def decrement(self, amount: int = 1):
+        self.count -= amount
+        self.update_count += 1
+
+    @event
+    def reset(self):
+        self.count = 0
+        self.update_count += 1
+
+@rt
+def index(req: Request):
+    counter = Counter.get(req)
     return Main(
-        todos,  # Renders with reactive data-signals
-        H1("My Todos"),
-        
-        # Interactive UI with zero JavaScript
-        Input(placeholder="Add todo...", data_model="$new_item"),
-        Button("Add", data_on_click=todos.add_item("$new_item")),
-        
-        # Reactive list updates automatically  
-        Ul(*[
-            Li(
-                item,
-                Button("✓" if completed else "○", 
-                      data_on_click=todos.toggle_item(i))
-            ) for i, (item, completed) in enumerate(zip(todos.items, todos.completed))
-        ])
+        counter,
+        H1("🔢 Counter Demo"),
+        # Counter display
+        Card(
+            Div(
+                Span(data_text=Counter.count_signal, cls=TextT.primary + "text-7xl font-bold"),
+                cls="text-center mb-2"
+            ),
+            Div("Total updates: ", Span(data_text=Counter.update_count_signal), cls=TextT.primary),
+            cls=CardT.default + "text-center my-6",
+        ),            
+        # Counter controls
+        Div(
+            Div(
+                Button("-10", data_on_click=Counter.decrement(10), cls=ButtonT.secondary),
+                Button("-1", data_on_click=Counter.decrement(1), cls=ButtonT.secondary),
+                Button("Reset", data_on_click=Counter.reset(), cls=ButtonT.secondary),
+                Button("+1", data_on_click=Counter.increment(1), cls=ButtonT.secondary),
+                Button("+10", data_on_click=Counter.increment(10), cls=ButtonT.secondary),
+                cls="text-center mb-6 flex gap-2 justify-center"
+            ),
+            cls="mb-6"
+        ),
+        # Custom increment
+        Div(
+            Form(
+                Input(name="amount", type="number", value="1", data_bind="$amount",cls="w-24"),
+                Button("+", type="submit", cls=ButtonT.secondary),
+                data_on_submit=Counter.increment(),
+                cls="mb-6"
+            ),
+            cls="text-center mb-6"
+        ),
+        cls="container mx-auto p-8 max-w-3xl"
     )
+
+# Import and add state routes
+states_rt.to_app(app)
+
+if __name__ == "__main__":
+    serve(reload=True, port=8080)
 ```
 
 ## Why This Matters
@@ -79,22 +123,6 @@ Changes to your Python objects instantly update the frontend via Server-Sent Eve
 ### 📦 **Minimal Peripheral Setup**
 No Redux stores, no API layer design, no frontend state management. Just define your entities and interact with them.
 
-## FastHTML Integration
-
-```python
-from fasthtml.common import *
-from starmodel import datastar_script, states_rt
-
-app, rt = fast_app(hdrs=(datastar_script,))
-
-# Your page routes
-@rt('/')  
-def home(req: Request):
-    return Main(H1("Welcome!"))
-
-# Auto-register all @event methods
-states_rt.to_app(app)
-```
 
 ## Storage Options
 
