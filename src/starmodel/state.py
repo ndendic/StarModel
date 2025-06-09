@@ -295,7 +295,7 @@ def event(path=None, *, method="get", selector=None, merge_mode="morph", name=No
     return decorator
 
 class StateStore(StrEnum):
-    """Enumeration of state storage mechanisms supported by FastModel."""
+    """Enumeration of state storage mechanisms supported by StarModel."""
     CLIENT_SESSION = "client_session"    # Datastar sessionStorage
     CLIENT_LOCAL = "client_local"        # Datastar localStorage
     SERVER_MEMORY = "server_memory"      # MemoryStatePersistence

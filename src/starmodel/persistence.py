@@ -1,5 +1,5 @@
 """
-FastModel Persistence Layer
+StarModel Persistence Layer
 
 This module provides optional state persistence with Redis and database backends
 for production use. States can be automatically persisted and loaded based on
@@ -112,7 +112,7 @@ class StatePersistenceBackend(ABC):
 #     Ideal for session-scoped and short-lived state data.
 #     """
     
-#     def __init__(self, redis_url: str = "redis://localhost:6379", prefix: str = "faststate:"):
+#     def __init__(self, redis_url: str = "redis://localhost:6379", prefix: str = "starmodel:"):
 #         """
 #         Initialize Redis persistence backend.
         
@@ -203,7 +203,7 @@ class StatePersistenceBackend(ABC):
 #     Ideal for user-scoped and global state data.
 #     """
     
-#     def __init__(self, database_url: str = "sqlite:///faststate.db", table_name: str = "faststate_data"):
+#     def __init__(self, database_url: str = "sqlite:///starmodel.db", table_name: str = "starmodel_data"):
 #         """
 #         Initialize database persistence backend.
         

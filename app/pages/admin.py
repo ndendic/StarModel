@@ -1,6 +1,6 @@
 from fasthtml.common import *
 from monsterui.all import *
-from faststate import *
+from starmodel import *
 import json
 
 rt = APIRouter()
@@ -9,10 +9,10 @@ class GlobalSettingsState(State):
     """Global state - shared across all users (admin only)."""
     model_config = {
         "arbitrary_types_allowed": True,
-        "faststate_store": StateStore.SERVER_MEMORY,
-        "faststate_auto_persist": True,
-        "faststate_persistence_backend": memory_persistence,
-        "faststate_ttl": None,
+        "starmodel_store": StateStore.SERVER_MEMORY,
+        "starmodel_auto_persist": True,
+        "starmodel_persistence_backend": memory_persistence,
+        "starmodel_ttl": None,
     }
     
     theme: str = "light"
@@ -118,7 +118,7 @@ def system_status(req: Request):
     # Get SSE connection stats
     auth = req.session.get("user")
     # Get state cache stats
-    from faststate.state import _state_cache
+    from starmodel.state import _state_cache
     cached_states = len(_state_cache)
     
     return Titled("System Status",
@@ -150,7 +150,7 @@ def system_status(req: Request):
                     Div(
                         Div(f"Session ID: {req.cookies.get('session_', 'auto-generated')[:100]}", cls="mb-2 font-mono text-sm"),
                         Div(f"Authentication: {auth or 'Not authenticated'}", cls="mb-2 font-mono text-sm"),
-                        Div("FastModel Version: Enhanced with SSE", cls="mb-2 font-mono text-sm"),
+                        Div("StarModel Version: Enhanced with SSE", cls="mb-2 font-mono text-sm"),
                         cls="bg-gray-50 p-4 rounded mb-6"
                     ),
                     cls="mb-6"
@@ -178,7 +178,7 @@ def system_status(req: Request):
                                 eventSource.close();
                             }
                             
-                            eventSource = new EventSource('/faststate/sse?states=CounterState,ChatState');
+                            eventSource = new EventSource('/starmodel/sse?states=CounterState,ChatState');
                             document.getElementById('sse-status').innerHTML = 'Connecting to SSE...';
                             
                             eventSource.onopen = function() {

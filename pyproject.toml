@@ -1,7 +1,7 @@
 [project]
-name = "faststate"
+name = "starmodel"
 version = "0.1.0"
-description = "Add your description here"
+description = "StarModel - Reactive State Management for FastHTML"
 readme = "README.md"
 authors = [
     { name = "ndendic", email = "ndendic@gmail.com" }

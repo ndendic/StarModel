@@ -1,12 +1,12 @@
 from fasthtml.common import *
 from monsterui.all import *
-from faststate import *
+from starmodel import *
 from route_collector import add_routes
 
 def auth_beforeware(req, sess):
     """
     Simple authentication beforeware using FastHTML/Starlette pattern.
-    This demonstrates how to handle auth outside of FastModel.
+    This demonstrates how to handle auth outside of StarModel.
     """
     # Simple demo auth - in real apps, integrate with your auth system
     auth = req.scope["user"] = sess.get("auth", None)
@@ -52,7 +52,7 @@ states_rt.to_app(app)
 
 if __name__ == "__main__":
     print("\n" + "="*60)
-    print("🎉 FastModel Demo Application Starting!")
+    print("🎉 StarModel Demo Application Starting!")
     print("="*60)
     
     serve(reload=True)

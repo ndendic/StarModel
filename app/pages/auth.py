@@ -1,6 +1,6 @@
 from fasthtml.common import *
 from monsterui.all import *
-from faststate import *
+from starmodel import *
 import json
 
 rt = APIRouter()
@@ -9,10 +9,10 @@ class UserProfileState(State):
     """User-scoped state - persists across sessions for authenticated users."""
     model_config = {
         "arbitrary_types_allowed": True,
-        "faststate_store": StateStore.SERVER_MEMORY,
-        "faststate_auto_persist": True,
-        "faststate_persistence_backend": memory_persistence,
-        "faststate_ttl": 3600,
+        "starmodel_store": StateStore.SERVER_MEMORY,
+        "starmodel_auto_persist": True,
+        "starmodel_persistence_backend": memory_persistence,
+        "starmodel_ttl": 3600,
     }
     
     name: str = ""

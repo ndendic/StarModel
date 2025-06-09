@@ -1,12 +1,12 @@
-# FastModel
+# StarModel
 
 **Entity-Centric Reactive Development for FastHTML**
 
-FastModel enables you to define your application's data structure and behavior in one place, minimizing configuration overhead and maximizing development speed. Build reactive web applications entirely in Python by encapsulating both backend logic and frontend interactivity around your entities.
+StarModel enables you to define your application's data structure and behavior in one place, minimizing configuration overhead and maximizing development speed. Build reactive web applications entirely in Python by encapsulating both backend logic and frontend interactivity around your entities.
 
 ## Core Philosophy
 
-**Stop separating your data from your behavior.** FastModel brings entity-driven development to web applications:
+**Stop separating your data from your behavior.** StarModel brings entity-driven development to web applications:
 
 - **State Models** - Define your data structure and business logic in unified Python classes
 - **Event Decorators** - Turn methods into interactive endpoints with zero configuration  
@@ -15,8 +15,8 @@ FastModel enables you to define your application's data structure and behavior i
 ## Quick Start
 
 ```bash
-git clone https://github.com/ndendic/FastModel.git
-cd FastModel
+git clone https://github.com/ndendic/StarModel.git
+cd StarModel
 uv sync
 python app/main.py  # Visit http://localhost:5001
 ```
@@ -24,7 +24,7 @@ python app/main.py  # Visit http://localhost:5001
 ## Entity-Centric Development
 
 ```python
-from faststate import State, event
+from starmodel import State, event
 
 # Define your entity - data + behavior in one place
 class TodoList(State):
@@ -83,7 +83,7 @@ No Redux stores, no API layer design, no frontend state management. Just define 
 
 ```python
 from fasthtml.common import *
-from faststate import datastar_script, states_rt
+from starmodel import datastar_script, states_rt
 
 app, rt = fast_app(hdrs=(datastar_script,))
 
@@ -99,7 +99,7 @@ states_rt.to_app(app)
 ## Storage Options
 
 ```python
-from faststate import StateStore
+from starmodel import StateStore
 
 class UserProfile(State):
     name: str = ""

@@ -1,6 +1,6 @@
 from fasthtml.common import *
 from monsterui.all import *
-from faststate import *
+from starmodel import *
 
 rt = APIRouter()
 
@@ -8,10 +8,10 @@ class ProductState(State):
     """Record-scoped state - tied to specific product records."""
     model_config = {
         "arbitrary_types_allowed": True,
-        "faststate_store": StateStore.SERVER_MEMORY,
-        "faststate_auto_persist": True,
-        "faststate_persistence_backend": memory_persistence,
-        "faststate_ttl": 7200,
+        "starmodel_store": StateStore.SERVER_MEMORY,
+        "starmodel_auto_persist": True,
+        "starmodel_persistence_backend": memory_persistence,
+        "starmodel_ttl": 7200,
     }
     
     name: str = ""

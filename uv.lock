@@ -1,4 +1,5 @@
 version = 1
+revision = 1
 requires-python = ">=3.12"
 
 [[package]]
@@ -234,35 +235,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/91/d9/eb3835ed8578e41d72b20827f47434203eab1679917af58d1bac03ca4de4/fastlite-0.1.4.tar.gz", hash = "sha256:53ba351d3d2301db07837fbc1db7183f20c6c0ea02b3168c66d68b9faa1932a1", size = 22283 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1e/44/8e7cdef4ef481772c614ebae69e3a291f279ed2de3950849c96fb1afa72d/fastlite-0.1.4-py3-none-any.whl", hash = "sha256:10cc3f1a6ecb56743fc8d1c0ee1de61e29344fa26b3c47a2efcf6cf55fafdc7f", size = 17510 },
-]
-
-[[package]]
-name = "faststate"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "datastar-py" },
-    { name = "python-fasthtml" },
-    { name = "sqlmodel" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "ipykernel" },
-    { name = "monsterui" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "datastar-py", git = "https://github.com/starfederation/datastar.git?subdirectory=sdk%2Fpython&rev=develop" },
-    { name = "python-fasthtml", specifier = ">=0.12.19" },
-    { name = "sqlmodel", specifier = ">=0.0.24" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "ipykernel", specifier = ">=6.29.5" },
-    { name = "monsterui", specifier = ">=1.0.21" },
 ]
 
 [[package]]
@@ -954,6 +926,35 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/8b/d0/0332bd8a25779a0e2082b0e179805ad39afad642938b371ae0882e7f880d/starlette-0.47.0.tar.gz", hash = "sha256:1f64887e94a447fed5f23309fb6890ef23349b7e478faa7b24a851cd4eb844af", size = 2582856 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e3/81/c60b35fe9674f63b38a8feafc414fca0da378a9dbd5fa1e0b8d23fcc7a9b/starlette-0.47.0-py3-none-any.whl", hash = "sha256:9d052d4933683af40ffd47c7465433570b4949dc937e20ad1d73b34e72f10c37", size = 72796 },
+]
+
+[[package]]
+name = "starmodel"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "datastar-py" },
+    { name = "python-fasthtml" },
+    { name = "sqlmodel" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "ipykernel" },
+    { name = "monsterui" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "datastar-py", git = "https://github.com/starfederation/datastar.git?subdirectory=sdk%2Fpython&rev=develop" },
+    { name = "python-fasthtml", specifier = ">=0.12.19" },
+    { name = "sqlmodel", specifier = ">=0.0.24" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "ipykernel", specifier = ">=6.29.5" },
+    { name = "monsterui", specifier = ">=1.0.21" },
 ]
 
 [[package]]

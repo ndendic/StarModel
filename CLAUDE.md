@@ -10,14 +10,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Install dev dependencies**: `uv sync --group dev`
 - **Run tests**: `python test_<test_name>.py` (tests are standalone scripts)
 - **Run all tests**: Execute individual test files directly (no unified test runner configured)
+- **Run specific tests**:
+  - SSE tests: `python test_sse_manager.py`
+  - Persistence tests: `python test_persistence.py`
+  - Integration tests: `python test_integration.py`
+  - Registry tests: `python test_registry.py`
+  - FastHTML integration tests: `python test_fasthtml_integration.py`
+  - Auth tests: `python test_auth.py`
+  - App integration tests: `python test_app_integration.py`
 
 ## Project Architecture
 
-FastState is a reactive state management system that integrates FastHTML with Datastar for building interactive web applications entirely in Python. The architecture follows these key patterns:
+StarModel is a reactive state management system that integrates FastHTML with Datastar for building interactive web applications entirely in Python. The architecture follows these key patterns:
 
 ### Core Components
 
-1. **State Base Class** (`src/faststate/state.py`): 
+1. **State Base Class** (`src/starmodel/state.py`): 
    - Inherits from Pydantic BaseModel for data validation and serialization
    - Provides simple `.get(req)` class method for explicit state resolution
    - **Signal-based Architecture**: Uses `SignalModelMeta` metaclass to create signal descriptors for Datastar integration
@@ -43,7 +51,7 @@ FastState is a reactive state management system that integrates FastHTML with Da
    - Supports namespaced signals (e.g., `$ClassName.fieldname`)
    - Field signal methods (e.g., `myfield_signal`) for programmatic access
 
-4. **Persistence Layer** (`src/faststate/persistence.py`):
+4. **Persistence Layer** (`src/starmodel/persistence.py`):
    - **StatePersistenceBackend**: Abstract base class for persistence implementations
    - **MemoryStatePersistence**: In-memory implementation with TTL support
    - Supports both async and sync operations for flexibility
@@ -193,7 +201,7 @@ def index(req: Request):
 
 ### Demo Application Features
 
-The demo app showcases all FastState capabilities with modular page structure:
+The demo app showcases all StarModel capabilities with modular page structure:
 
 - **Home (`/`)**: MyState with default SESSION scope configuration
 - **Counter (`/counter`)**: CounterState with GLOBAL scope and memory persistence 
@@ -223,11 +231,11 @@ app/pages/
 - **State Configuration**: Use Pydantic's `model_config` dictionary for custom settings
 - **State Access Pattern**: Use `MyState.get(req)` in route handlers for explicit state resolution
 - **State Lifecycle**: States are automatically cached in memory with session-based IDs
-- **Database File**: Demo app uses SQLite database (`app/faststate_demo.db`) for demo purposes
+- **Database File**: Demo app uses SQLite database (`app/starmodel_demo.db`) for demo purposes
 - **Authentication**: Compatible with FastHTML beforeware middleware system
 - **Route Collection**: Automatic route discovery from `app/pages/` modules via FastHTML patterns
 - **No Complex Setup**: Just inherit from State and use `@event` decorator
-- **Backward Compatibility**: Existing FastHTML patterns work alongside FastState enhancements
+- **Backward Compatibility**: Existing FastHTML patterns work alongside StarModel enhancements
 
 ## Simple State Access API
 

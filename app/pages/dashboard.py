@@ -5,7 +5,7 @@ from fasthtml.svg import *
 from monsterui.all import *
 from monsterui.franken import Grid as Grd
 from pages.templates import app_template
-from faststate import State, event
+from starmodel import State, event
 from .components.charts import Apex_Chart, ChartT
 from pydantic import BaseModel
 

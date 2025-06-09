@@ -1,6 +1,6 @@
 from fasthtml.common import *
 from monsterui.all import *
-from faststate import *
+from starmodel import *
 from pages.templates import app_template
 
 rt = APIRouter()
@@ -58,7 +58,7 @@ def index(req: Request):
     return Main(
         # Welcome message
         Div(
-            H1("🚀 FastModel Demo", cls="text-4xl font-bold text-center mb-6"),
+            H1("🚀 StarModel Demo", cls="text-4xl font-bold text-center mb-6"),
             P("Showcasing automatic dependency injection with different state scopes", 
                 cls="text-center mb-8"),
             cls="mb-8"
