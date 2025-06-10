@@ -10,277 +10,255 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Install dev dependencies**: `uv sync --group dev`
 - **Run tests**: `python test_<test_name>.py` (tests are standalone scripts)
 - **Run all tests**: Execute individual test files directly (no unified test runner configured)
-- **Run specific tests**:
-  - SSE tests: `python test_sse_manager.py`
-  - Persistence tests: `python test_persistence.py`
-  - Integration tests: `python test_integration.py`
-  - Registry tests: `python test_registry.py`
-  - FastHTML integration tests: `python test_fasthtml_integration.py`
-  - Auth tests: `python test_auth.py`
-  - App integration tests: `python test_app_integration.py`
 
 ## Project Architecture
 
-StarModel is a reactive state management system that integrates FastHTML with Datastar for building interactive web applications entirely in Python. The architecture follows these key patterns:
+StarModel is a reactive state management system that integrates FastHTML with Datastar for building interactive web applications entirely in Python. The architecture has been **significantly simplified** following fast.ai coding standards with clean, short methods (<10 lines each).
 
 ### Core Components
 
 1. **State Base Class** (`src/starmodel/state.py`): 
-   - Inherits from Pydantic BaseModel for data validation and serialization
-   - Provides simple `.get(req)` class method for explicit state resolution
-   - **Signal-based Architecture**: Uses `SignalModelMeta` metaclass to create signal descriptors for Datastar integration
-   - **StateStore Enumeration**: Direct configuration using `StateStore` enum (CLIENT_SESSION, CLIENT_LOCAL, SERVER_MEMORY, CUSTOM)
-   - **model_config**: Uses Pydantic's model_config dictionary for all state configuration options
-   - Automatically generates SSE endpoints for `@event` decorated methods
-   - Handles state synchronization between server and client via Datastar signals
-   - Built-in methods for live streaming (`live`), polling (`poll`), and syncing (`sync`)
+   - **Ultra-Simple API**: Just `MyState.get(req)` for state access (5 lines of code)
+   - **Standard Python Patterns**: Uses standard `__init__` method instead of complex factory patterns
+   - **Clean Separation**: State creation, client sync, and persistence clearly separated
+   - **Signal-based Architecture**: Uses `SignalModelMeta` metaclass for automatic `field_signal` descriptors
+   - **StateStore Enumeration**: Simple configuration using `StateStore` enum (CLIENT_SESSION, CLIENT_LOCAL, SERVER_MEMORY, CUSTOM)
+   - **Unified Caching**: Uses `memory_persistence` for all caching with proper TTL cleanup
+   - **No Recursion Issues**: Fixed infinite recursion between `__init__` and client sync methods
 
 2. **Event Decorator System**:
    - `@event` decorator automatically registers methods as HTTP endpoints
-   - **URL Generator Methods**: Automatically creates static methods for Datastar attributes (e.g., `MyState.increment(1)` → `@get('/MyState/increment?amount=1')`)
-   - Supports custom routing paths, HTTP methods, and Datastar selectors with `merge_mode` parameter
-   - Uses FastHTML's APIRouter for route registration
-   - Generates SSE responses for real-time state updates
-   - Handles parameter conversion from query strings, JSON payloads, and Datastar payload
-   - Always sends `merge_signals` for state sync, conditionally sends `merge_fragments` for FT components
+   - **URL Generator Methods**: Automatically creates static methods for Datastar attributes
+   - **Parameter Extraction**: Enhanced support for Datastar payload alongside FastHTML parameters
+   - **SSE Streaming**: All events return Server-Sent Event streams with state synchronization
+   - **Real-time Updates**: Automatic `merge_signals` and optional `merge_fragments`
 
-3. **Signal System**:
-   - **SignalDescriptor**: Creates reactive bindings for Pydantic model fields
-   - **SignalModelMeta**: Metaclass that automatically adds signal descriptors for each field
-   - Returns `$FieldName` for class access and actual values for instance access
-   - Supports namespaced signals (e.g., `$ClassName.fieldname`)
-   - Field signal methods (e.g., `myfield_signal`) for programmatic access
+3. **Simplified Signal System**:
+   - **Automatic Field Signals**: Every field gets `MyState.field_signal` descriptor
+   - **Clean Namespace Support**: Optional class-based namespacing (`$ClassName.field`)
+   - **Direct Signal Access**: Simple `state.signal('fieldname')` method
+   - **Datastar Integration**: Seamless integration with Datastar's reactive system
 
-4. **Persistence Layer** (`src/starmodel/persistence.py`):
-   - **StatePersistenceBackend**: Abstract base class for persistence implementations
-   - **MemoryStatePersistence**: In-memory implementation with TTL support
-   - Supports both async and sync operations for flexibility
-   - Built-in memory_persistence instance for immediate use
-   - Future-ready for Redis and Database backends (currently commented out)
+4. **Unified Persistence Layer** (`src/starmodel/persistence.py`):
+   - **Single Backend**: `MemoryStatePersistence` serves as unified cache and persistence
+   - **Instance Storage**: Stores whole State instances (not serialized data) for efficiency
+   - **TTL Support**: Built-in expiration with cleanup via `save(ttl=X)` parameter
+   - **Simple API**: Just `save()`, `delete()`, and `exists()` methods
 
-### Key Patterns
+### Key Architectural Improvements
 
-- **State classes** inherit from `State` and define reactive properties with automatic signal generation
-- **Simple state access** via `MyState.get(req)` method for explicit resolution with session-based caching
-- **Event methods** use `@event` decorator for automatic route registration with URL generators
-- **UI binding** uses Datastar `data-*` attributes with automatic signal names (`$fieldname` or `$ClassName.fieldname`)
-- **State updates** automatically trigger SSE events to update client signals via `merge_signals`
-- **Session management** ties state instances to sessions via automatic ID generation and memory persistence
-- **Real-time streaming** via `live()`, `poll()`, and `sync()` built-in methods
-- **Automatic persistence** with configurable StateStore backends and TTL support
-- **Client-side persistence** support for sessionStorage and localStorage via Datastar
+#### **Simplified State.get() Method** (5 lines):
+```python
+@classmethod
+def get(cls, req: Request, **kwargs) -> 'State':
+    """Get cached state or create new."""
+    state_id = cls._get_id(req, **kwargs)
+    cached = memory_persistence._data.get(state_id)
+    if cached and isinstance(cached, cls):
+        return cached
+    return cls(req, id=state_id, **kwargs)
+```
+
+#### **Standard Python __init__** (6 lines):
+```python
+def __init__(self, req: Request = None, **kwargs):
+    super().__init__(**kwargs)
+    if not self.id:
+        self.id = self._get_id(req, **kwargs)
+    self._sync_from_client(req)  # Sync BEFORE caching
+    self._cache_self()           # Cache the synced state
+    if self.auto_persist:
+        self.save()
+```
+
+#### **Clean Helper Methods** (each <10 lines):
+- `_get_id()` - Simple ID generation (overridable)
+- `_sync_from_client()` - Client sync without recursion
+- `_cache_self()` - Instance caching
+- `save(ttl=None)` - Persistence with optional TTL override
 
 ### Technology Stack
 
 - **FastHTML**: Server-side HTML generation and routing
-- **Datastar**: Client-side reactivity and SSE handling (~15KB, uses SSE transport)
+- **Datastar**: Client-side reactivity and SSE handling (~15KB)
 - **Pydantic**: Data validation and serialization (BaseModel)
 - **MonsterUI**: UI component library for styling
 
 ### State Management Flow
 
-1. State class defines reactive properties and event handlers with optional configuration
-2. Route handlers use `MyState.get(req)` to access state instances (auto-registers on first access)
-3. UI renders with `data-signals` containing initial state
-4. User interactions trigger events via Datastar `data-on-*` attributes using generated URL methods
-5. Event handlers update state and return SSE responses with `merge_signals` and optional `merge_fragments`
-6. Client receives SSE updates and automatically updates bound UI elements
+1. **Simple State Access**: `MyState.get(req)` - auto-caches with memory persistence
+2. **Standard Creation**: Uses Python `__init__` patterns users expect  
+3. **Client Sync**: Automatic sync with Datastar payload on state access
+4. **Instance Caching**: Whole objects cached (not serialized) for performance
+5. **Event Handling**: `@event` methods trigger SSE responses with state updates
+6. **Automatic Persistence**: Configurable persistence with TTL support
 
-### State Configuration Examples
+### Current Configuration System
 
+#### **Simple model_config**:
 ```python
-# Simple state with default configuration (SERVER_MEMORY store, auto_persist enabled)
 class MyState(State):
+    # Default config - no setup needed
     myInt: int = 0
-    myStr: str = "Hello"
-    
-    @event
-    def increment(self, amount: int):
-        self.myInt += amount
+    myStr: str = "Hello from StarModel"
 
-# State with custom configuration using model_config
-class CounterState(State):
-    count: int = 0
-    last_updated_by: str = ""
+class AdvancedState(State):
+    data: dict = {}
     
     model_config = {
-        "store": StateStore.CLIENT_SESSION,  # Use sessionStorage
-        "use_namespace": True,               # Enable namespaced signals
-        "auto_persist": False                # Disable auto-persist for client storage
+        "store": StateStore.CLIENT_SESSION,      # Where to store
+        "auto_persist": True,                    # Auto-save changes
+        "persistence_backend": memory_persistence, # How to store
+        "sync_with_client": True,               # Client sync
+        "use_namespace": True,                  # Namespaced signals
     }
-    
-    @event(method="post")
-    def increment(self, amount: int = 1, user: str = "Anonymous"):
-        self.count += amount
-        self.last_updated_by = user
-
-# Simple route usage with .get() method
-@rt('/')
-def index(req: Request):
-    my_state = MyState.get(req)  # Auto-caches with memory persistence
-    return Main(
-        my_state,  # Uses __ft__ method for rendering with data-signals
-        Button("+1", data_on_click=MyState.increment(1)),  # Generated URL method
-        P(f"Count: {my_state.myInt}")  # Direct access to values
-    )
 ```
 
-### Configuration Options
-
-**StateStore enum values:**
-- `StateStore.CLIENT_SESSION` - Browser sessionStorage (Datastar managed)
-- `StateStore.CLIENT_LOCAL` - Browser localStorage (Datastar managed)
+#### **StateStore Options**:
 - `StateStore.SERVER_MEMORY` - Server-side memory persistence (default)
+- `StateStore.CLIENT_SESSION` - Browser sessionStorage (Datastar managed)
+- `StateStore.CLIENT_LOCAL` - Browser localStorage (Datastar managed)  
 - `StateStore.CUSTOM` - Custom persistence backend
 
-**model_config parameters:**
-- `store: StateStore` - Storage mechanism (default: SERVER_MEMORY)
-- `auto_persist: bool` - Enable automatic persistence (default: True)
-- `persistence_backend: StatePersistenceBackend` - Backend instance (default: memory_persistence)
-- `use_namespace: bool` - Use namespaced signals (default: True)
-- `namespace: str` - Custom namespace (default: class name)
-- `sync_with_client: bool` - Sync with client changes (default: True)
+### Demo Application Structure
 
-### SSE and Streaming Patterns
+The demo showcases StarModel capabilities with clean, modular pages:
 
-- All event responses are SSE streams with proper headers
-- **Automatic State Sync**: Always sends `merge_signals` with current state
-- **Fragment Updates**: Conditionally sends `merge_fragments` for FastHTML components
-- **Streaming Support**: Async generators for real-time streaming responses
-- **Merge Modes**: Support for "morph", "inner", "outer", "append", "prepend" via `merge_mode` parameter
-
-### Development Notes
-
-- **Simple Configuration**: Use Pydantic's `model_config` dictionary for all state settings
-- **State Access**: Use `MyState.get(req)` for simple, explicit state resolution with automatic caching
-- **Smart Defaults**: Classes without custom `model_config` get SERVER_MEMORY store with auto_persist enabled
-- **Session Management**: State instances automatically tied to sessions via `get_session_id()` method
-- **Parameter Conversion**: Event handlers handle string-to-type conversion from query params and Datastar payload
-- **Signal Access**: Use `my_state.signal('fieldname')` or `FieldName_signal` descriptor for reactive bindings
-- **Custom Routing**: Custom routing paths can override default `ClassName/method_name` pattern
-- **Clean Architecture**: No complex setup - just inherit from State and use `@event` decorator
-- **URL Generators**: Automatic static methods for Datastar attributes via `__init_subclass__`
-
-### Integration with FastHTML
-
-- **Simple API**: Use `MyState.get(req)` in any FastHTML route handler
-- **Route Registration**: `@event` decorated methods are auto-registered with FastHTML's APIRouter
-- **Parameter Injection**: Compatible with FastHTML's dependency injection system
-- **Backward Compatibility**: Works alongside existing FastHTML patterns
-- **Module Structure**: Organized in `app/pages/` directory with automatic route collection
-- **Clean Setup**: Just import and use - no complex configuration needed
-
-### Real-time Features
-
-- **Built-in Streaming**: `live()`, `poll()`, and `sync()` methods for real-time updates
-- **SSE Responses**: All event methods return SSE streams with automatic signal updates
-- **Heartbeat Support**: `live(heartbeat=1.0)` for periodic state updates
-- **Async Generators**: Support for streaming responses with automatic state persistence
-
-### Persistence Configuration
-
-- **Memory Backend**: Built-in `MemoryStatePersistence` with TTL support for development
-- **Client-side Storage**: sessionStorage and localStorage via Datastar integration
-- **Custom Backends**: Extensible `StatePersistenceBackend` interface
-- **Auto-persist**: Automatically save/load state changes with configurable persistence
-- **Future Backends**: Redis and Database backends available in commented code
-
-### Signal System Features
-
-- **Automatic Signals**: Every field gets a corresponding signal descriptor
-- **Namespaced Signals**: Optional class-based namespacing (e.g., `$ClassName.field`)
-- **Signal Methods**: Built-in `signal()` method and `field_signal` descriptors
-- **Datastar Integration**: Seamless integration with Datastar's reactive system
-- **Client Persistence**: Automatic `data-persist` attributes for client storage
-
-### Testing Structure
-
-- Tests are standalone Python scripts (no pytest/unittest framework)
-- Each test file can be run independently: `python test_<name>.py`
-- Manual verification required as tests don't use assertion frameworks
-
-### Demo Application Features
-
-The demo app showcases all StarModel capabilities with modular page structure:
-
-- **Home (`/`)**: MyState with default SESSION scope configuration
-- **Counter (`/counter`)**: CounterState with GLOBAL scope and memory persistence 
-- **Admin (`/admin`)**: GlobalSettingsState with GLOBAL scope and database persistence
-- **Profile (`/profile`)**: UserProfileState with USER scope and database persistence
-- **Product (`/product/{id}`)**: ProductState with RECORD scope tied to specific IDs
-- **Chat (`/chat`)**: ChatState with GLOBAL scope for real-time collaboration
-- **Auth (`/login`, `/auth-demo`)**: Authentication handling and session management
-- **Status (`/status`)**: System monitoring dashboard with live statistics
+- **Home (`/`)**: MyState with default configuration
+- **Counter (`/counter`)**: Enhanced counter with real-time streaming
+- **Dashboard (`/dashboard`)**: Complex state with computed fields and charts
+- **Admin (`/admin`)**: Global settings with system monitoring
+- **Auth (`/auth-demo`)**: User profiles with authentication
+- **Chat (`/chat`)**: Real-time collaboration demo
+- **Product (`/product/{id}`)**: Record-scoped state tied to IDs
 
 ### Page Module Structure
-
 ```
 app/pages/
 ├── __init__.py
-├── index.py          # MyState (default config)
-├── counter.py         # CounterState (global, memory)
-├── admin.py           # GlobalSettingsState (global, database) 
-├── auth.py            # UserProfileState (user, database)
-├── product.py         # ProductState (record, database)
-└── chat.py            # ChatState (global, memory)
+├── index.py          # MyState (session-scoped)
+├── counter.py         # CounterState (enhanced with streaming)
+├── dashboard.py       # DashboardState (computed fields, charts)
+├── admin.py           # GlobalSettingsState (global scope)
+├── auth.py            # UserProfileState (user-scoped)
+├── product.py         # ProductState (record-scoped)
+├── chat.py            # ChatState (real-time collaboration)
+└── templates.py       # Shared page templates
+```
+
+## Development Patterns
+
+### **State Access Pattern** (Recommended):
+```python
+@rt('/')
+def index(req: Request):
+    my_state = MyState.get(req)  # Simple, explicit state resolution
+    return Main(
+        my_state,  # Auto-renders with signals and persistence
+        Button("+1", data_on_click=MyState.increment(1)),  # URL generator
+        P(f"Count: {my_state.myInt}")  # Direct value access
+    )
+```
+
+### **Event Methods**:
+```python
+class CounterState(State):
+    count: int = 0
+    
+    @event  # Default GET endpoint
+    def increment(self, amount: int = 1):
+        self.count += amount
+    
+    @event(method="post", selector="#counter")  # Custom config
+    def reset(self):
+        self.count = 0
+        return Div(f"Reset to {self.count}", id="counter")
+```
+
+### **Signal Usage**:
+```python
+# In Python code
+Span(data_text=MyState.count_signal)  # → data-text="$count" or "$MyState.count"
+
+# Direct signal access
+my_state.signal('count')  # Returns "$count" or "$MyState.count"
 ```
 
 ## Important Development Notes
 
-- **Simple Setup**: States work out-of-the-box with minimal configuration
-- **State Configuration**: Use Pydantic's `model_config` dictionary for custom settings
-- **State Access Pattern**: Use `MyState.get(req)` in route handlers for explicit state resolution
-- **State Lifecycle**: States are automatically cached in memory with session-based IDs
-- **Database File**: Demo app uses SQLite database (`app/starmodel_demo.db`) for demo purposes
-- **Authentication**: Compatible with FastHTML beforeware middleware system
-- **Route Collection**: Automatic route discovery from `app/pages/` modules via FastHTML patterns
-- **No Complex Setup**: Just inherit from State and use `@event` decorator
-- **Backward Compatibility**: Existing FastHTML patterns work alongside StarModel enhancements
+- **Fast.ai Standards**: All methods kept under 10 lines following fast.ai guidelines
+- **No Recursion**: Fixed infinite recursion issues between `__init__` and client sync
+- **Instance Caching**: Stores whole State objects for performance (not serialized data)
+- **Standard Python**: Uses familiar `__init__` patterns instead of complex factories
+- **Clean Separation**: State creation, sync, caching, and persistence clearly separated
+- **Extensibility**: Easy to override `_get_id()` or other helper methods for custom logic
+- **Error Prevention**: Sync happens before caching to avoid stale data
+- **Repository**: Now uses `main` branch as default with clean Git setup
+- **Project Name**: Fully renamed from FastState to StarModel throughout codebase
 
 ## Simple State Access API
 
 ```python
-# Basic usage in any route (auto-caches with memory persistence)
+# Basic usage (auto-caches, session-scoped by default)
 my_state = MyState.get(req)
 
-# Multiple states in one route
-counter = CounterState.get(req)    # SERVER_MEMORY store
-profile = ProfileState.get(req)    # CLIENT_SESSION store
+# Multiple states in one route  
+counter = CounterState.get(req)     # SERVER_MEMORY store
+profile = SessionState.get(req)     # CLIENT_SESSION store
 
 # Generated URL methods for Datastar
-Button("+1", data_on_click=MyState.increment(1))       # → @get('/MyState/increment?amount=1')
-Button("Save", data_on_click=ProductState.save())      # → @get('/ProductState/save')
-Button("Delete", data_on_click=ProductState.delete(confirm=True))  # → @get('/ProductState/delete?confirm=true')
+Button("+1", data_on_click=MyState.increment(1))
+Input(data_bind=MyState.text_signal, data_on_change=MyState.update_text())
 
 # Signal access for reactive binding
-Div(f"Count: {counter.count}", data_text=counter.count_signal)  # → data-text="$CounterState.count"
+Div("Count:", Span(data_text=MyState.count_signal))
 ```
 
 ## Configuration Examples
 
 ```python
-# Default configuration (SERVER_MEMORY store, auto_persist enabled)
+# Minimal configuration (uses all defaults)
 class SimpleState(State):
     value: int = 0
-    # No model_config needed - gets defaults automatically
+    
+    @event
+    def increment(self):
+        self.value += 1
 
-# Custom client-side persistence
-class SessionState(State):
+# Client-side storage
+class ClientState(State):
     data: dict = {}
     
     model_config = {
-        "store": StateStore.CLIENT_SESSION,  # Use sessionStorage
-        "use_namespace": True,               # Enable namespacing
-        "auto_persist": False                # Disable server auto-persist
+        "store": StateStore.CLIENT_SESSION,  # sessionStorage
+        "auto_persist": False,               # Disable server persistence
     }
 
-# Server-side with custom backend
+# Advanced server-side configuration  
 class PersistentState(State):
     important_data: str = ""
     
     model_config = {
         "store": StateStore.SERVER_MEMORY,
         "auto_persist": True,
-        "persistence_backend": memory_persistence  # Custom backend instance
+        "persistence_backend": memory_persistence,
+        "use_namespace": True,
+        "sync_with_client": True,
     }
+    
+    def save(self, ttl=3600):  # Custom TTL
+        return super().save(ttl)
 ```
+
+## Recent Major Improvements
+
+1. **Simplified Architecture**: Reduced `State.get()` from 60+ lines to 5 lines
+2. **Fixed Recursion**: Eliminated infinite recursion between `__init__` and client sync
+3. **Instance Caching**: Store whole objects instead of serialized data for performance
+4. **Standard Patterns**: Use familiar Python `__init__` instead of complex factories
+5. **Clean Separation**: Clear separation between creation, sync, caching, and persistence
+6. **Fast.ai Standards**: All methods under 10 lines following coding best practices
+7. **Complete Rename**: Project fully renamed from FastState to StarModel
+8. **Git Cleanup**: Main branch as default, clean repository structure
+
+The StarModel project now provides a radically simplified, high-performance state management system for FastHTML applications while maintaining full functionality and extensibility.
