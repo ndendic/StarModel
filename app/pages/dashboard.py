@@ -13,7 +13,7 @@ class Sale(BaseModel):
     email: str
     amount: int
 
-class DashboardState(State):
+class Dashboard(State):
     
     sales: int = 0
     subscriptions: int = 0
@@ -71,10 +71,10 @@ class DashboardState(State):
 def InfoCard(title, value, change):
     return Div(Card(Div(value), P(change, cls=TextPresets.muted_sm), header=H4(title)))
 
-rev = InfoCard("Total Revenue", H3("$",Span(data_text=DashboardState.total_revenue_signal)), Span(Span(data_text=DashboardState.pct_change_signal)," from last sales"))
-sub = InfoCard("Subscriptions",H3(data_text=DashboardState.sales_signal), Span(Span(data_text=DashboardState.pct_change_signal)," from last month"))
-sal = InfoCard("Sales", H3("$",Span(data_text=DashboardState.total_revenue_signal)), Span(Span(data_text=DashboardState.pct_change_signal)," from last month"))
-act = InfoCard("Active Now", H3(data_text=DashboardState.sales_signal), Span(Span(data_text=DashboardState.pct_change_signal)," from last hour"))
+rev = InfoCard("Total Revenue", H3("$",Span(data_text=Dashboard.total_revenue_signal)), Span(Span(data_text=Dashboard.pct_change_signal)," from last sales"))
+sub = InfoCard("Subscriptions",H3(data_text=Dashboard.sales_signal), Span(Span(data_text=Dashboard.pct_change_signal)," from last month"))
+sal = InfoCard("Sales", H3("$",Span(data_text=Dashboard.total_revenue_signal)), Span(Span(data_text=Dashboard.pct_change_signal)," from last month"))
+act = InfoCard("Active Now", H3(data_text=Dashboard.sales_signal), Span(Span(data_text=Dashboard.pct_change_signal)," from last hour"))
 
 # %% ../example_dashboard.ipynb
 top_info_row = Grd(rev, sub, sal, act, cols_min=1, cols_max=4)
@@ -108,7 +108,7 @@ rt = APIRouter()
 @rt("/dashboard")
 @app_template("Dashboard")
 def dashboard(request):
-    state = DashboardState.get(request)
+    state = Dashboard.get(request)
     return Div(cls="space-y-4")(
         state,
         H2("Dashboard"),
@@ -144,7 +144,7 @@ def dashboard(request):
                             Input(type="email", name="email", data_bind="$email", placeholder="Email"),
                             Input(type="number", name="amount", data_bind="$amount", placeholder="Amount"),
                             Button("Add Sales", type="submit"),
-                            data_on_submit=DashboardState.add_sales(),
+                            data_on_submit=Dashboard.add_sales(),
                             
                         ),
                         cls="col-span-4"

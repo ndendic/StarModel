@@ -44,10 +44,8 @@ def SidebarButton(icon, text, href="#"):
                 cls="space-x-2",
             ),
             data_on_click=f"@get('{href}')",
-            # href=href + "#",
-            # hx_boost="true",
-            # hx_target="#content",
-            # hx_swap_oob=True,
+            data_replace_url=f'`{href}`',
+
         )
     )
 

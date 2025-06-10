@@ -329,6 +329,7 @@ class SignalModelMeta(ModelMetaclass):
         for field_name in cls.model_computed_fields:
             setattr(cls, f"{field_name}_signal", SignalDescriptor(field_name))
 
+
 class State(BaseModel, metaclass=SignalModelMeta):
     """Base class for all state classes."""
     model_config = {

@@ -182,9 +182,14 @@ def MobileDrawer():
     )
 
 
-def NewNav(request):
+def Navbar():
+    nav_items = [
+        ("Home", "/"),
+        ("Dashboard", "/dashboard"),
+    ]
+
     return Header(
-        cls="sticky top-0 z-100 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
+        cls="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
     )(
         Div(cls="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16")(
             Div(cls="flex h-full justify-between items-center")(
@@ -193,7 +198,7 @@ def NewNav(request):
                     MobileDrawer(),
                     # Logo
                     A(href="/", cls="flex items-center")(
-                        Span("DataHTML", cls="font-bold text-xl")
+                        Span("⭐", cls="font-bold text-xl")
                     ),
                     # Desktop navigation
                     Nav(cls="hidden md:flex items-center space-x-8")(
@@ -209,14 +214,19 @@ def NewNav(request):
                 ),
                 # Desktop CTA buttons
                 Div(cls="hidden md:flex items-center space-x-4")(
+                    A(
+                        "Sign in",
+                        href="/auth/login",
+                        cls="text-sm font-medium transition-colors hover:text-primary",
+                    ),
+                    Button(
+                        "Get Started",
+                        cls=ButtonT.primary,
+                        onclick="window.location.href='/pricing'",
+                    ),
                     theme_switcher(),
-                    Input(placeholder="Search"),
-                    # avatar_dropdown(request),
+
                 ),
             )
         )
     )
-
-
-def Navbar(request):
-    return TopNav(request)

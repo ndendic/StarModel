@@ -1,3 +1,13 @@
+:root  {
+  --font-sans:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+.dark {
+  --font-sans:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+
+
 .uk-theme-candy {
   --background: 200 23.08% 97.45%;
   --foreground: 0 0% 20%;
@@ -31,7 +41,7 @@
   --sidebar-accent-foreground: 0 0% 0%;
   --sidebar-border: 0 0% 83.14%;
   --sidebar-ring: 349.52 100% 87.65%;
-  --font-custom: Poppins, sans-serif;
+  --font-sans: Poppins, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: Roboto Mono, monospace;
   --radius: 0.5rem;
@@ -78,7 +88,7 @@
   --sidebar-accent-foreground: 0 0% 0%;
   --sidebar-border: 0 0% 26.67%;
   --sidebar-ring: 330 100.00% 80%;
-  --font-custom: Poppins, sans-serif;
+  --font-sans: Poppins, sans-serif;
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: Roboto Mono, monospace;
   --radius: 0.5rem;
@@ -219,7 +229,7 @@
   --sidebar-accent-foreground: 0 0% 20.39%;
   --sidebar-border: 0 0% 92.16%;
   --sidebar-ring: 0 0% 70.98%;
-  --font-custom: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --radius: 0.5rem;
@@ -266,7 +276,7 @@
   --sidebar-accent-foreground: 46.15 9.77% 73.92%;
   --sidebar-border: 0 0% 92.16%;
   --sidebar-ring: 0 0% 70.98%;
-  --font-custom: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   --radius: 0.5rem;
@@ -391,6 +401,10 @@
   --chart-5: 6 81% 57%;
 }
 
-.font-custom {
-  font-family: var(--font-custom);
+.font-sans {
+  font-family: var(--font-sans) !important;
 }
+
+/* Use CSS Cascade Layers for proper override order */
+
+
