@@ -44,8 +44,7 @@ def SidebarButton(icon, text, href="#"):
                 cls="space-x-2",
             ),
             data_on_click=f"@get('{href}')",
-            data_replace_url=f'`{href}`',
-
+            # data_replace_url=f"`{href}`",
         )
     )
 

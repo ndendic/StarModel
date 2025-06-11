@@ -24,7 +24,7 @@ def page_template(title="StarModel"):
         def wrapper(request, *args, **kwargs):
             content = func(request)
             if is_ds(request):
-                return content
+                return content, Div(data_replace_url=f"`{request.url.path}`")
             return site_page(title, content)
         return wrapper
     return decorator

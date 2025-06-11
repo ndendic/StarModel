@@ -110,7 +110,7 @@ rt = APIRouter()
 def dashboard(request):
     state = Dashboard.get(request)
     return Div(cls="space-y-4")(
-        state,
+        state,        
         H2("Dashboard"),
         TabContainer(
             Li(A("Overview", cls="uk-active")),
