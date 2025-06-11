@@ -63,7 +63,7 @@ def reactive_hero():
                     # Code content with line numbers
                     Div(
                                 
-                         render_md("""```python
+                         CodeBlock("""
 from starmodel import State, event
 from fasthtml.common import *
 
@@ -82,7 +82,6 @@ def home(req):
         Button("+1", 
                data_on_click=CounterState.increment())
     )
-```
 """),
                                                         
                         

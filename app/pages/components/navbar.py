@@ -36,6 +36,11 @@ hotkeys = [
     ("Logout", "", "/auth/logout", False),
 ]
 
+nav_items = [
+    ("Home", "/"),
+    ("Dashboard", "/dashboard"),
+    ("Playground", "/playground"),    
+]
 
 def NavSpacedLi(t, s=None, href="#", is_content=True):
     return A(
@@ -101,12 +106,6 @@ def SidebarToggle():
         uk_toggle="target: #mobile-sidebar",
         aria_label="Toggle navigation menu",
     )
-
-
-nav_items = [
-    ("Home", "/"),
-    ("Dashboard", "/dashboard")
-]
 
 
 def TopNav(request):
