@@ -50,7 +50,8 @@ def construct_script(*,
     distributed: bool = False,               # Color each bar individually (bar/column charts only). :contentReference[oaicite:turn0search8]{index=8}
     curve: Literal["smooth", "straight", "stepline"] = "smooth",  # Stroke curve style for line/area. :contentReference[oaicite:turn0search9]{index=9}
     stroke_width: int = 2,                   # Width (px) of line/area strokes. :contentReference[oaicite:turn0search9]{index=10}
-    colors: List[str] | None = None,         # Palette array or callback for series/points. :contentReference[oaicite:turn0search10]{index=11}
+    colors: List[str] | None = None,    
+    id="chart-script",     # Palette array or callback for series/points. :contentReference[oaicite:turn0search10]{index=11}
     **extra_options,
     ) -> Script:
     base = {
@@ -84,7 +85,7 @@ def construct_script(*,
         base.setdefault("plotOptions", {}).setdefault("bar", {})["distributed"] = True
 
     merged = _deep_merge(base, extra_options)
-    return Script(json.dumps(merged, separators=(",", ":")), type="application/json", id="chart-script")
+    return Script(json.dumps(merged, separators=(",", ":")), type="application/json", id=id)
 
 
 def Apex_Chart(script: Script,       # Palette array or callback for series/points. :contentReference[oaicite:turn0search10]{index=11}

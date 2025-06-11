@@ -39,7 +39,8 @@ hotkeys = [
 nav_items = [
     ("Home", "/"),
     ("Dashboard", "/dashboard"),
-    ("Playground", "/playground"),    
+    ("Playground", "/playground"),
+    ("Data Viz", "/data-playground"),
 ]
 
 def NavSpacedLi(t, s=None, href="#", is_content=True):
@@ -185,6 +186,7 @@ def Navbar():
     nav_items = [
         ("Home", "/"),
         ("Dashboard", "/dashboard"),
+        ("Data Viz", "/data-playground"),
     ]
 
     return Header(
