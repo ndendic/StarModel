@@ -25,7 +25,7 @@ for file in md_files:
 @rt("/docs")
 @page_template(title="StarModel Docs")
 def docs(req: Request):
-    return Div(
+    return Div(cls="font-serif max-w-2xl mx-auto")(
         H1("StarModel Docs"),
         P("This is the StarModel docs page."),
         render_md(content)
