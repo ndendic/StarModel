@@ -9,7 +9,14 @@ configuration.
 import time
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
+from enum import StrEnum
 
+class StateStore(StrEnum):
+    """Enumeration of state storage mechanisms supported by StarModel."""
+    CLIENT_SESSION = "client_session"    # Datastar sessionStorage
+    CLIENT_LOCAL = "client_local"        # Datastar localStorage
+    SERVER_MEMORY = "server_memory"      # MemoryStatePersistence
+    CUSTOM = "custom"    
 
 class StatePersistenceBackend(ABC):
     """
