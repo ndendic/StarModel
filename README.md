@@ -1,5 +1,7 @@
 # StarModel
 
+NOTE: This lobrary is still in early beta and major architecture shifts are planned to move it from working proof of concept to best practice patterns with major architecture improvements.
+
 **Entity-Centric Reactive Development for FastHTML**
 
 StarModel enables you to define your application's data structure and behavior in one place, minimizing configuration overhead and maximizing development speed. Build reactive web applications entirely in Python by encapsulating both backend logic and frontend interactivity around your entities.
