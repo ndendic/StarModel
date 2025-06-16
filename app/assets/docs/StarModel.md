@@ -1,4 +1,4 @@
-# StarModel Development Guide: Reactive State Management with Datastar Attributes
+# StarModel Development Guide: Reactive Entity Management with Datastar Attributes
 
 **Entity-Centric Reactive Development for FastHTML with Comprehensive Datastar Integration**
 
@@ -10,7 +10,7 @@ StarModel revolutionizes web development by unifying data models and behavior in
 2. [StarModel Fundamentals](#starmodel-fundamentals)
 3. [Complete Datastar Attributes Reference](#complete-datastar-attributes-reference)
 4. [Event Handling & Server-Side Integration](#event-handling--server-side-integration)
-5. [Advanced State Management Patterns](#advanced-state-management-patterns)
+5. [Advanced Entity Management Patterns](#advanced-entity-management-patterns)
 6. [Production-Ready Examples](#production-ready-examples)
 
 ## Quick Setup & Core Concepts
@@ -31,7 +31,7 @@ app, rt = fast_app(
 )
 
 # Add StarModel routes to FastHTML app
-states_rt.to_app(app)  # Essential: registers all @event routes
+entities_rt.to_app(app)  # Essential: registers all @event routes
 ```
 
 ### Core StarModel Philosophy
@@ -39,7 +39,7 @@ states_rt.to_app(app)  # Essential: registers all @event routes
 **Entity-Centric Development**: Your `User`, `Product`, `Todo` entities contain both data schema AND business logic. No separation between models and controllers.
 
 ```python
-class User(State):
+class User(Entity):
     name: str = ""
     email: str = ""
     is_active: bool = True
@@ -60,14 +60,14 @@ class User(State):
 
 ## StarModel Fundamentals
 
-### State Class Architecture
+### Entity Class Architecture
 
 ```python
-class TaskManager(State):
+class TaskManager(Entity):
     model_config = {
         "namespace": "TaskManager",  # Custom namespace (default: class name)
         "use_namespace": True,       # Use namespaced signals: $TaskManager.field
-        "store": StateStore.SERVER_MEMORY,  # Storage backend
+        "store": EntityStore.SERVER_MEMORY,  # Storage backend
         "auto_persist": True,        # Auto-save after each event
         "sync_with_client": True,    # Auto-sync with client signals
     }
@@ -163,7 +163,7 @@ def index(req: Request):
 StarModel provides multiple ways to access signals:
 
 ```python
-class Counter(State):
+class Counter(Entity):
     count: int = 0
     user_name: str = ""
     
@@ -182,10 +182,10 @@ Button({f"data-on-click": Counter.increment()})  # data-on-click="@get('/Counter
 ### 1. Signals Management (`data-signals`)
 
 **Purpose**: Initialize and merge reactive signals
-**StarModel Integration**: Auto-generated from State instances
+**StarModel Integration**: Auto-generated from Entity instances
 
 ```python
-class DashboardState(State):
+class DashboardEntity(Entity):
     total_sales: int = 0
     revenue: float = 0.0
     active_users: int = 0
@@ -193,7 +193,7 @@ class DashboardState(State):
 
 @rt("/dashboard")
 def dashboard(req: Request):
-    dashboard = DashboardState.get(req)
+    dashboard = DashboardEntity.get(req)
     
     # Manual signals (if needed)
     manual_signals = {
@@ -212,15 +212,15 @@ def dashboard(req: Request):
         Div(cls="stats")(
             Div(cls="stat")(
                 H3("Total Sales"),
-                Span({f"data-text": DashboardState.total_sales_signal})
+                Span({f"data-text": DashboardEntity.total_sales_signal})
             ),
             Div(cls="stat")(
                 H3("Revenue"),
-                Span({f"data-text": f"'$' + {DashboardState.revenue_signal}.toFixed(2)"})
+                Span({f"data-text": f"'$' + {DashboardEntity.revenue_signal}.toFixed(2)"})
             ),
             Div(cls="stat")(
                 H3("Active Users"),
-                Span({f"data-text": DashboardState.active_users_signal})
+                Span({f"data-text": DashboardEntity.active_users_signal})
             )
         )
     )
@@ -232,7 +232,7 @@ def dashboard(req: Request):
 **StarModel Integration**: Use `ModelClass.field_signal` for binding
 
 ```python
-class UserProfile(State):
+class UserProfile(Entity):
     first_name: str = ""
     last_name: str = ""
     email: str = ""
@@ -323,7 +323,7 @@ def profile_form(req: Request):
 **StarModel Integration**: Use `ModelClass.method()` for event handlers
 
 ```python
-class InteractiveDemo(State):
+class InteractiveDemo(Entity):
     click_count: int = 0
     search_query: str = ""
     last_key: str = ""
@@ -357,7 +357,7 @@ def interactive_demo(req: Request):
     demo = InteractiveDemo.get(req)
     
     return Div(
-        demo,  # State signals
+        demo,  # Entity signals
         
         # Click events with modifiers
         Div(cls="click-demo")(
@@ -436,7 +436,7 @@ def interactive_demo(req: Request):
 **StarModel Integration**: Direct signal interpolation
 
 ```python
-class ContentDemo(State):
+class ContentDemo(Entity):
     user_name: str = "Guest"
     user_score: int = 0
     show_advanced: bool = False
@@ -456,7 +456,7 @@ def content_demo(req: Request):
     content = ContentDemo.get(req)
     
     return Div(
-        content,  # State signals
+        content,  # Entity signals
         
         # Dynamic text with expressions
         H1({f"data-text": f"'Welcome, ' + {ContentDemo.user_name_signal}"}),
@@ -492,7 +492,7 @@ def content_demo(req: Request):
             "Congratulations! You've passed the halfway mark!"
         ),
         
-        # Show for empty/non-empty states
+        # Show for empty/non-empty entities
         Div({f"data-show": f"{ContentDemo.items_signal}.length === 0"})(
             "No items yet. Add some items to get started."
         ),
@@ -515,10 +515,10 @@ def content_demo(req: Request):
 ### 5. CSS Classes and Styling (`data-class`, `data-attr`)
 
 **Purpose**: Dynamic CSS classes and HTML attributes
-**StarModel Integration**: Reactive styling based on state
+**StarModel Integration**: Reactive styling based on entity
 
 ```python
-class StylingDemo(State):
+class StylingDemo(Entity):
     theme: str = "light"
     is_loading: bool = False
     validation_errors: List[str] = []
@@ -556,21 +556,21 @@ def styling_demo(req: Request):
     styling = StylingDemo.get(req)
     
     return Div(
-        styling,  # State signals
+        styling,  # Entity signals
         
         # Theme-based styling
         Div(
             {f"data-class": f"{{'theme-light': {StylingDemo.theme_signal} === 'light', 'theme-dark': {StylingDemo.theme_signal} === 'dark'}}"},
             cls="app-container"
         )(
-            # Dynamic classes based on state
+            # Dynamic classes based on entity
             Button(
                 {f"data-text": f"'Switch to ' + ({StylingDemo.theme_signal} === 'light' ? 'dark' : 'light') + ' theme'"},
                 {f"data-on-click": StylingDemo.toggle_theme()},
                 {f"data-class": f"{{'btn-primary': {StylingDemo.theme_signal} === 'light', 'btn-secondary': {StylingDemo.theme_signal} === 'dark'}}"}
             ),
             
-            # Loading states with dynamic attributes
+            # Loading entities with dynamic attributes
             Div(
                 {f"data-class": f"{{'loading': {StylingDemo.is_loading_signal}, 'success': {StylingDemo.status_signal} === 'success'}}"},
                 {f"data-attr": f"{{'aria-busy': {StylingDemo.is_loading_signal}, 'data-status': {StylingDemo.status_signal}}}"}
@@ -627,20 +627,20 @@ def styling_demo(req: Request):
     )
 ```
 
-### 6. Loading States (`data-indicator`)
+### 6. Loading Entitys (`data-indicator`)
 
-**Purpose**: Track loading states during SSE requests
+**Purpose**: Track loading entities during SSE requests
 **StarModel Integration**: Automatic loading indicators for @event methods
 
 ```python
-class LoadingDemo(State):
+class LoadingDemo(Entity):
     data: List[Dict] = []
     upload_progress: int = 0
     save_status: str = ""
     
     @event
     async def fetch_data(self):
-        """Long-running data fetch with loading state"""
+        """Long-running data fetch with loading entity"""
         # Simulate API call
         await asyncio.sleep(2)
         self.data = [{"id": i, "name": f"Item {i}"} for i in range(10)]
@@ -677,7 +677,7 @@ def loading_demo(req: Request):
     loading = LoadingDemo.get(req)
     
     return Div(
-        loading,  # State signals
+        loading,  # Entity signals
         
         # Button with loading indicator
         Button(
@@ -715,12 +715,12 @@ def loading_demo(req: Request):
         
         Div(id="upload-progress"),
         
-        # Multiple loading states
+        # Multiple loading entities
         Div(
             {f"data-class": f"{{'loading': '$fetchingData || $saving || $uploading'}}"},
             cls="status-panel"
         )(
-            P("Global loading state: "),
+            P("Global loading entity: "),
             Span({f"data-text": "'Active: ' + ($fetchingData ? 'fetching ' : '') + ($saving ? 'saving ' : '') + ($uploading ? 'uploading' : '') || 'none'"})
         )
     )
@@ -729,12 +729,12 @@ def loading_demo(req: Request):
 ### 7. Persistence (`data-persist`)
 
 **Purpose**: Persist signals in browser storage
-**StarModel Integration**: Configurable via StateStore
+**StarModel Integration**: Configurable via EntityStore
 
 ```python
-class PersistenceDemo(State):
+class PersistenceDemo(Entity):
     model_config = {
-        "store": StateStore.CLIENT_LOCAL,  # or CLIENT_SESSION, SERVER_MEMORY
+        "store": EntityStore.CLIENT_LOCAL,  # or CLIENT_SESSION, SERVER_MEMORY
         "sync_with_client": True
     }
     
@@ -760,24 +760,24 @@ class PersistenceDemo(State):
         self.user_preferences.update(prefs)
 
 # Different persistence strategies
-class SessionState(State):
-    model_config = {"store": StateStore.CLIENT_SESSION}  # sessionStorage
+class SessionEntity(Entity):
+    model_config = {"store": EntityStore.CLIENT_SESSION}  # sessionStorage
     temp_data: str = ""
 
-class LocalState(State):
-    model_config = {"store": StateStore.CLIENT_LOCAL}   # localStorage
+class LocalEntity(Entity):
+    model_config = {"store": EntityStore.CLIENT_LOCAL}   # localStorage
     persistent_data: str = ""
 
-class ServerState(State):
-    model_config = {"store": StateStore.SERVER_MEMORY}  # Server memory
+class ServerEntity(Entity):
+    model_config = {"store": EntityStore.SERVER_MEMORY}  # Server memory
     server_data: str = ""
 
 @rt("/persistence")
 def persistence_demo(req: Request):
-    # Different state instances with different persistence
-    session_state = SessionState.get(req)
-    local_state = LocalState.get(req)
-    server_state = ServerState.get(req)
+    # Different entity instances with different persistence
+    session_entity = SessionEntity.get(req)
+    local_entity = LocalEntity.get(req)
+    server_entity = ServerEntity.get(req)
     
     return Div(
         # Manual persistence configuration
@@ -791,26 +791,26 @@ def persistence_demo(req: Request):
             {f"data-persist__session": "session_only"}  # Session storage
         ),
         
-        # State instances with auto-persistence
-        session_state,  # Auto-persists in sessionStorage
-        local_state,    # Auto-persists in localStorage
-        server_state,   # Auto-persists on server
+        # Entity instances with auto-persistence
+        session_entity,  # Auto-persists in sessionStorage
+        local_entity,    # Auto-persists in localStorage
+        server_entity,   # Auto-persists on server
         
         H2("Session Storage (cleared on tab close)"),
         Input(
-            {f"data-bind": SessionState.temp_data_signal},
+            {f"data-bind": SessionEntity.temp_data_signal},
             placeholder="Session data"
         ),
         
         H2("Local Storage (persistent across sessions)"),
         Input(
-            {f"data-bind": LocalState.persistent_data_signal},
+            {f"data-bind": LocalEntity.persistent_data_signal},
             placeholder="Persistent data"
         ),
         
         H2("Server Memory (shared across clients)"),
         Input(
-            {f"data-bind": ServerState.server_data_signal},
+            {f"data-bind": ServerEntity.server_data_signal},
             placeholder="Server data"
         ),
         
@@ -833,7 +833,7 @@ def persistence_demo(req: Request):
 **StarModel Integration**: Access DOM elements in event handlers
 
 ```python
-class RefDemo(State):
+class RefDemo(Entity):
     scroll_position: int = 0
     element_info: Dict = {}
     
@@ -853,7 +853,7 @@ def refs_demo(req: Request):
     refs = RefDemo.get(req)
     
     return Div(
-        refs,  # State signals
+        refs,  # Entity signals
         
         # Create element references
         Div(
@@ -905,7 +905,7 @@ def refs_demo(req: Request):
 **StarModel Integration**: Server-side validation with client feedback
 
 ```python
-class ValidationDemo(State):
+class ValidationDemo(Entity):
     username: str = ""
     email: str = ""
     password: str = ""
@@ -955,7 +955,7 @@ def validation_demo(req: Request):
     validation = ValidationDemo.get(req)
     
     return Form(
-        validation,  # State signals
+        validation,  # Entity signals
         
         # Username field with custom validation
         Div(cls="form-group")(
@@ -1040,7 +1040,7 @@ def validation_demo(req: Request):
 ### 10. Advanced Attributes
 
 ```python
-class AdvancedDemo(State):
+class AdvancedDemo(Entity):
     items: List[Dict] = []
     current_view: str = "list"
     
@@ -1062,9 +1062,9 @@ def advanced_demo(req: Request):
     advanced = AdvancedDemo.get(req)
     
     return Div(
-        advanced,  # State signals
+        advanced,  # Entity signals
         
-        # URL state management
+        # URL entity management
         Div({f"data-replace-url": f"'/advanced?view=' + {AdvancedDemo.current_view_signal}"}),
         
         # Scroll into view
@@ -1114,7 +1114,7 @@ def advanced_demo(req: Request):
 ### The @event Decorator Deep Dive
 
 ```python
-class ProductCatalog(State):
+class ProductCatalog(Entity):
     products: List[Dict] = []
     filters: Dict = {"category": "", "min_price": 0, "max_price": 1000}
     sort_by: str = "name"
@@ -1213,7 +1213,7 @@ class ProductCatalog(State):
 
 ```python
 # StarModel automatically generates URL methods for each @event
-class BlogPost(State):
+class BlogPost(Entity):
     title: str = ""
     content: str = ""
     tags: List[str] = []
@@ -1235,7 +1235,7 @@ def blog_editor(req: Request):
     blog = BlogPost.get(req)
     
     return Form(
-        blog,  # State signals
+        blog,  # Entity signals
         
         # These automatically generate the correct URLs:
         Input(
@@ -1260,12 +1260,12 @@ def blog_editor(req: Request):
 # BlogPost.save_draft("My Title", "Content") → "@post('/BlogPost/save_draft?title=My%20Title&content=Content')"
 ```
 
-## Advanced State Management Patterns
+## Advanced Entity Management Patterns
 
 ### Multi-Model Coordination
 
 ```python
-class User(State):
+class User(Entity):
     id: str = ""
     name: str = ""
     email: str = ""
@@ -1281,7 +1281,7 @@ class User(State):
             # Could trigger other model updates here
         ]
 
-class NotificationService(State):
+class NotificationService(Entity):
     notifications: List[Dict] = []
     
     @event
@@ -1297,7 +1297,7 @@ class NotificationService(State):
     def dismiss_notification(self, notification_id: str):
         self.notifications = [n for n in self.notifications if n["id"] != notification_id]
 
-class Dashboard(State):
+class Dashboard(Entity):
     current_user_id: str = ""
     active_notifications: bool = True
     
@@ -1336,7 +1336,7 @@ def dashboard(req: Request):
     notifications = NotificationService.get(req)
     
     return Div(
-        dashboard,      # Multiple state instances
+        dashboard,      # Multiple entity instances
         user,
         notifications,
         
@@ -1357,7 +1357,7 @@ def dashboard(req: Request):
 ### Real-Time Collaboration
 
 ```python
-class CollaborativeEditor(State):
+class CollaborativeEditor(Entity):
     document_id: str = ""
     content: str = ""
     cursors: Dict[str, Dict] = {}  # user_id -> {position, color}
@@ -1442,7 +1442,7 @@ def collaborative_editor(req: Request, document_id: str):
     user_id = req.session.get("user_id", "anonymous")
     
     return Div(
-        editor,  # State with real-time updates
+        editor,  # Entity with real-time updates
         
         # Auto-join session
         Div({f"data-on-load": CollaborativeEditor.join_session(user_id, document_id)}),
@@ -1460,9 +1460,9 @@ def collaborative_editor(req: Request, document_id: str):
 ### E-commerce Shopping Cart
 
 ```python
-class ShoppingCart(State):
+class ShoppingCart(Entity):
     model_config = {
-        "store": StateStore.CLIENT_LOCAL,  # Persist cart across sessions
+        "store": EntityStore.CLIENT_LOCAL,  # Persist cart across sessions
         "sync_with_client": True
     }
     
@@ -1592,7 +1592,7 @@ def shopping_cart_page(req: Request):
     cart = ShoppingCart.get(req)
     
     return Main(
-        cart,  # Auto-persisted cart state
+        cart,  # Auto-persisted cart entity
         
         H1("Shopping Cart"),
         
@@ -1641,9 +1641,9 @@ def shopping_cart_page(req: Request):
 ### Real-Time Chat Application
 
 ```python
-class ChatRoom(State):
+class ChatRoom(Entity):
     model_config = {
-        "store": StateStore.SERVER_MEMORY,  # Shared across all clients
+        "store": EntityStore.SERVER_MEMORY,  # Shared across all clients
         "auto_persist": True
     }
     
@@ -1786,8 +1786,8 @@ class ChatRoom(State):
         
         return Div(id="typing-indicator", cls="typing")(text)
 
-class UserSession(State):
-    model_config = {"store": StateStore.CLIENT_SESSION}
+class UserSession(Entity):
+    model_config = {"store": EntityStore.CLIENT_SESSION}
     
     user_id: str = ""
     username: str = ""
@@ -1805,8 +1805,8 @@ def chat_room_page(req: Request, room_id: str):
         session.username = f"User{random.randint(1000, 9999)}"
     
     return Div(
-        session,  # User session state
-        chat,     # Shared chat state
+        session,  # User session entity
+        chat,     # Shared chat entity
         
         # Auto-join room on load
         Div({f"data-on-load": ChatRoom.join_room(session.user_id, session.username, room_id)}),
@@ -1845,17 +1845,17 @@ def chat_room_page(req: Request, room_id: str):
     )
 ```
 
-This comprehensive guide demonstrates how StarModel revolutionizes reactive web development by unifying state management and event handling in entity-centric Python classes. The combination of Pydantic models, automatic SSE endpoints, and seamless Datastar integration eliminates the complexity of modern web development while providing powerful real-time capabilities.
+This comprehensive guide demonstrates how StarModel revolutionizes reactive web development by unifying entity management and event handling in entity-centric Python classes. The combination of Pydantic models, automatic SSE endpoints, and seamless Datastar integration eliminates the complexity of modern web development while providing powerful real-time capabilities.
 
 **Key Benefits:**
 - **Zero Configuration**: `@event` methods automatically become reactive endpoints
 - **Type Safety**: Full Pydantic validation and typing throughout
-- **Automatic Persistence**: Configurable state storage (client/server)
+- **Automatic Persistence**: Configurable entity storage (client/server)
 - **Real-Time Updates**: Built-in SSE streaming with signal synchronization
 - **FastHTML Integration**: Seamless dependency injection and component rendering
 
 **Best Practices:**
-1. Start with simple State classes and add complexity incrementally
+1. Start with simple Entity classes and add complexity incrementally
 2. Use descriptive event method names that map to user actions
 3. Leverage StarModel's automatic URL generation for consistent routing
 4. Choose appropriate storage strategies based on data sensitivity and sharing needs

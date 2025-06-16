@@ -1,17 +1,32 @@
+"""
+Simplified Event Decorator System
+
+This module provides the @event decorator that stores metadata only.
+Route registration is handled by the dispatcher and FastHTML adapter.
+
+This is the refactored version as specified in app-layer.md.
+"""
+
 import inspect
-import json
-import urllib.parse
-from typing import Any, Dict
+from dataclasses import dataclass
+from typing import Optional, Any, Dict
 
-from datastar_py import SSE_HEADERS
-from datastar_py import ServerSentEventGenerator as SSE
-from fasthtml.common import *
-from fasthtml.core import APIRouter, StreamingResponse, _find_p, parse_form
 
-rt = APIRouter()
+@dataclass
+class EventInfo:
+    """Metadata about an event method stored by the @event decorator."""
+    name: str
+    method: str
+    selector: Optional[str]
+    merge_mode: str
+    signature: inspect.Signature
+    path: Optional[str] = None
+    include_in_schema: bool = True
+
 
 class DatastarPayload:
     """Represents Datastar payload data that can be injected into event methods."""
+    
     def __init__(self, data: Dict[str, Any] = None):
         self._data = data or {}
     
@@ -39,247 +54,69 @@ class DatastarPayload:
         """Access the raw data dictionary."""
         return self._data
 
-def datastar_from_queryParams(request: Request) -> DatastarPayload:
-    """Synchronous version - Extract Datastar payload from request (query params only)."""
-    datastar_payload = None
-    
-    try:
-        # Only try getting datastar from query params in sync version
-        datastar_json_str = request.query_params.get('datastar')
-        if datastar_json_str:
-            datastar_payload = json.loads(datastar_json_str)
-    except Exception:
-        datastar_payload = None
-    
-    return DatastarPayload(datastar_payload)
 
-async def _extract_datastar_payload(request: Request) -> DatastarPayload:
-    """Extract Datastar payload from request."""
-    datastar_payload = None
-    
-    try:
-        # Try getting datastar from query params first
-        datastar_json_str = request.query_params.get('datastar')
-        if datastar_json_str:
-            datastar_payload = json.loads(datastar_json_str)
-        else:
-            # Try getting from JSON body
-            try:
-                datastar_payload = await request.json()
-            except Exception:
-                # Try getting from form data
-                form_data = await parse_form(request)
-                if hasattr(form_data, 'get'):
-                    datastar_json_str = form_data.get('datastar')
-                    if datastar_json_str:
-                        datastar_payload = json.loads(datastar_json_str)
-    except Exception:
-        datastar_payload = None
-    
-    return DatastarPayload(datastar_payload)
-
-async def _find_p_with_datastar(req: Request, arg: str, p, datastar_payload: DatastarPayload):
-    """Extended version of FastHTML's _find_p that also supports Datastar parameters."""
-    anno = p.annotation
-        
-    try:
-        result = await _find_p(req, arg, p) # Use FastHTML's original _find_p function
-    except Exception:
-        result = None
-
-    if result is None:
-        # Handle Datastar payload injection
-        if isinstance(anno, type) and issubclass(anno, DatastarPayload):
-            return datastar_payload
-        if anno is DatastarPayload:
-            return datastar_payload
-        if arg.lower() == 'datastar' and anno is inspect.Parameter.empty:
-            return datastar_payload
-                
-        if datastar_payload and arg in datastar_payload:
-            value = datastar_payload[arg]
-            # Apply type conversion if needed
-            if anno != inspect.Parameter.empty:
-                from fasthtml.core import _fix_anno
-                try:
-                    return _fix_anno(anno, value)
-                except Exception:
-                    return value
-            return value
-    
-    return result
-
-async def _wrap_req_with_datastar(req: Request, params: Dict[str, inspect.Parameter], namespace: str = None):
-    """Extended version of _wrap_req that supports Datastar parameters."""
-    # Extract Datastar payload first
-    datastar_payload = await _extract_datastar_payload(req)
-    if namespace and namespace in datastar_payload.raw_data:
-    # Merge namespaced data into the top level while keeping the original structure
-        namespaced_data = datastar_payload.get(namespace, {})
-        merged_data = {**datastar_payload.raw_data, **namespaced_data}
-        datastar_payload = DatastarPayload(merged_data)
-    
-    # Process all parameters with Datastar support
-    result = []
-    for arg, p in params.items():
-        param_value = await _find_p_with_datastar(req, arg, p, datastar_payload)
-        result.append(param_value)
-    
-    return result
-
-def _register_event_route(entity_cls, method, config):
-    """Register an event method as a FastHTML route using FastHTML's parameter injection system."""
-    # Generate route path
-    path = config.get('path') or f"/{entity_cls.__name__}/{method.__name__}"
-    methods = [config.get('method', 'get').upper()]
-    selector = config.get('selector')
-    merge_mode = config.get('merge_mode', 'morph')
-    name = config.get('name')
-    include_in_schema = config.get('include_in_schema', True)
-    body_wrap = config.get('body_wrap')
-    
-    # Get method signature for FastHTML parameter injection
-    sig = inspect.signature(method)
-    
-    # Create the route handler using FastHTML patterns
-    async def event_handler(request: Request):
-        # Get entity instance (this handles session, auth extraction internally)
-        entity = entity_cls.get(request)
-        
-        # Use enhanced parameter resolution system with Datastar support
-        # This handles all parameter extraction including Datastar payload
-        namespace = entity.namespace if entity.use_namespace else None
-        wrapped_params = await _wrap_req_with_datastar(request, sig.parameters, namespace=namespace)
-        
-        # Call the method with resolved parameters (skip 'self' which is index 0)
-        # The entity instance replaces 'self', so we use entity + params[1:]
-        method_params = [entity] + wrapped_params[1:]
-        
-        # Check if method is async before calling _handle
-        if inspect.iscoroutinefunction(method):
-            result = await method(*method_params)
-        else:
-            result = method(*method_params)
-        
-        # Auto-persist entity changes if configured
-        if entity.auto_persist and not entity.store.startswith("client_"):
-            entity.save()
-        
-        # Handle async generators and regular returns
-        async def sse_stream():            
-            # Always send current entity signals first
-            yield SSE.merge_signals(entity.signals)
-            
-            if hasattr(result, '__aiter__'):  # Async generator
-                async for item in result:
-                    # Auto-persist entity changes after each yield if configured
-                    if entity.auto_persist and not entity.store.startswith("client_"):
-                        entity.save()
-                    
-                    # Send updated entity after each yield
-                    yield SSE.merge_signals(entity.signals)
-                    if item and (hasattr(item, '__ft__') or isinstance(item, FT)):  # FT component
-                        fragments = [to_xml(item)]
-                        if selector:
-                            for fragment in fragments:
-                                yield SSE.merge_fragments(fragment, selector=selector, merge_mode=merge_mode)
-                        else:
-                            for fragment in fragments:
-                                yield SSE.merge_fragments(fragment, merge_mode=merge_mode)
-            else:  # Regular return or None
-                if result and (hasattr(result, '__ft__') or isinstance(result, FT)):  # FT component
-                    fragments = [to_xml(result)]
-                    if selector:
-                        for fragment in fragments:
-                            yield SSE.merge_fragments(fragment, selector=selector, merge_mode=merge_mode) 
-                    else:
-                        for fragment in fragments:
-                            yield SSE.merge_fragments(fragment, merge_mode=merge_mode)
-        
-        return StreamingResponse(sse_stream(), media_type="text/event-stream", headers=SSE_HEADERS) 
-    
-    # Register with APIRouter following FastHTML pattern
-    rt(path, methods=methods, name=name, include_in_schema=include_in_schema, body_wrap=body_wrap)(event_handler)
-
-def _add_url_generator(entity_cls, method_name, method, config):
-    """Add URL generator static method to the entity class with FastHTML compatibility."""
-    # Generate route path (same logic as in _register_event_route)
-    path = config.get('path') or f"/{entity_cls.__name__}/{method_name}"
-    http_method = config.get('method', 'get')
-    
-    # Get parameter names from method signature, filtering out FastHTML special params
-    sig = inspect.signature(method)
-    param_names = []
-    special_params = {'session', 'auth', 'request', 'htmx', 'scope', 'app', 'datastar'}
-    
-    for name, param in list(sig.parameters.items())[1:]:  # Skip 'self'
-        # Skip FastHTML special parameters that get auto-injected
-        if name.lower() not in special_params:
-            # Also skip if annotation indicates it's a special FastHTML type
-            anno = param.annotation
-            if anno != inspect.Parameter.empty:
-                if hasattr(anno, '__name__'):
-                    if anno.__name__ in ('Request', 'HtmxHeaders', 'Starlette', 'DatastarPayload'):
-                        continue
-            param_names.append(name)
-    
-    def url_generator(*call_args, **call_kwargs):
-        # Build query parameters from args and kwargs
-        params = {}
-        
-        # Add positional arguments
-        for i, arg in enumerate(call_args):
-            if i < len(param_names):
-                params[param_names[i]] = arg
-        
-        # Add keyword arguments (filter out None values)
-        params.update({k: v for k, v in call_kwargs.items() if v is not None})
-        
-        # Build query string
-        if params:
-            query_string = urllib.parse.urlencode(params, doseq=True)
-            return f"@{http_method}('{path}?{query_string}')"
-        else:
-            return f"@{http_method}('{path}')"
-    
-    # Set the URL generator as a static method on the class
-    # We need to preserve the original method, so we add the URL generator as an attribute
-    url_generator_method = staticmethod(url_generator)
-    
-    # Store the URL generator on the class, preserving the original method
-    if not hasattr(entity_cls, '_url_generators'):
-        entity_cls._url_generators = {}
-    entity_cls._url_generators[method_name] = url_generator_method
-    
-    # Also set it as a class attribute so it can be accessed as ClassName.method_name()
-    setattr(entity_cls, method_name, url_generator_method)
-
-def event(path=None, *, method="get", selector=None, merge_mode="morph", name=None, include_in_schema=True, body_wrap=None):
+def event(
+    fn=None, 
+    *, 
+    method: str = "GET", 
+    selector: Optional[str] = None,
+    merge_mode: str = "morph",
+    path: Optional[str] = None,
+    include_in_schema: bool = True
+):
     """
-    Simplified event decorator for Entity methods.
+    Store event metadata only - no route registration.
+    
+    The @event decorator now only stores metadata about the method.
+    Actual route registration is handled by the FastHTML adapter.
     
     Args:
-        path: Custom route path (optional, defaults to /{ClassName}/{method_name})
-        method: HTTP method (default: "get")
-        selector: Datastar selector for fragment updates (optional)
-        merge_mode: Datastar merge mode (default: "morph")
+        fn: Function being decorated (when used without parentheses)
+        method: HTTP method for the event (GET, POST, etc.)
+        selector: CSS selector for Datastar fragment updates
+        merge_mode: Datastar merge mode (morph, replace, etc.)
+        path: Custom path for the route (optional)
+        include_in_schema: Whether to include in API schema
+    
+    Returns:
+        Decorated function with _event_info attribute
     """
     def decorator(func):
-        # Store config on the function
-        func._event_config = {
-            'path': path,
-            'method': method,
-            'selector': selector,
-            'merge_mode': merge_mode,
-            'name': name,
-            'include_in_schema': include_in_schema,
-            'body_wrap': body_wrap
-        }
+        # Store event metadata on the function
+        func._event_info = EventInfo(
+            name=func.__name__,
+            method=method.upper(),
+            selector=selector,
+            merge_mode=merge_mode,
+            signature=inspect.signature(func),
+            path=path,
+            include_in_schema=include_in_schema
+        )
         return func
     
-    if callable(path):  # Used as @event without parentheses
-        func = path
-        func._event_config = {'path': None, 'method': 'get', 'selector': None, 'merge_mode': 'morph', 'name': None, 'include_in_schema': True, 'body_wrap': None}
-        return func
+    # Handle usage as @event without parentheses
+    if fn is not None:
+        return decorator(fn)
     
     return decorator
+
+
+# Legacy compatibility - keep the old DatastarPayload extraction functions
+# These will be moved to the dispatcher in a future cleanup
+
+def datastar_from_queryParams(request) -> DatastarPayload:
+    """Extract Datastar payload from request query params only."""
+    import json
+    
+    try:
+        datastar_json_str = request.query_params.get('datastar')
+        if datastar_json_str:
+            data = json.loads(datastar_json_str)
+            return DatastarPayload(data)
+    except Exception:
+        pass
+    
+    return DatastarPayload()
+
+
+# Note: extract_datastar_payload was removed as it's not used in the new architecture

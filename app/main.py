@@ -3,6 +3,14 @@ from monsterui.all import *
 from starmodel import *
 from route_collector import add_routes
 
+# from starmodel import UnitOfWork, InProcessBus, persistence_manager, register_entities, register_all_entities
+from starmodel import  register_all_entities
+# Import all entities
+from entities.landing import LandingEntity
+from pages.counter import CounterEntity  
+from pages.dashboard import DashboardEntity
+from pages.data_playground import DataPlaygroundEntity
+
 def auth_beforeware(req, sess):
     """
     Simple authentication beforeware using FastHTML/Starlette pattern.
@@ -58,8 +66,20 @@ app, rt = fast_app(
 )
 
 add_routes(app)
-# Import and add entity routes
-entities_rt.to_app(app)
+# Import and register entity routes using new application service layer
+
+
+# # Create application service layer components
+# bus = InProcessBus()
+# uow = UnitOfWork(persistence_manager, bus)
+
+# # Register entities with FastHTML adapter
+# entity_classes = [LandingEntity, CounterEntity, DashboardEntity, DataPlaygroundEntity]
+# register_entities(rt, entity_classes, uow)
+
+register_all_entities(rt)
+# # Keep old route registration for backward compatibility
+# entities_rt.to_app(app)
 
 if __name__ == "__main__":
     print("\n" + "="*60)
