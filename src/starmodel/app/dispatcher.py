@@ -12,9 +12,10 @@ from typing import Any, Dict, Tuple
 
 from fasthtml.common import Request
 from fasthtml.core import _find_p, parse_form, _fix_anno
+from ..core.events import DatastarPayload
 
 
-async def is_datastar_request(request: Request):
+async def is_datastar_request(request: Request) -> bool:
     """Check if the request is a Datastar request."""
     if 'datastar' in request.query_params or 'datastar' in request.headers:
         return True
@@ -41,10 +42,9 @@ async def is_datastar_request(request: Request):
             return False
     return False
 
-async def _extract_datastar_payload(request: Request):
+async def _extract_datastar_payload(request: Request) -> DatastarPayload:
     """Extract Datastar payload from request (query params, form data, and JSON body)."""
-    from ..core.events import DatastarPayload
-    
+
     datastar_payload = None
     
     try:
@@ -100,7 +100,7 @@ async def _find_p_with_datastar(req: Request, arg: str, p, datastar_payload):
     # Handle special FastHTML parameters first
     if arg.lower() == 'request' or arg.lower() == 'req':
         return req
-    if arg.lower() == 'datastar' and (anno is DatastarPayload or anno == DatastarPayload):
+    if arg.lower() == 'datastar' or (anno is DatastarPayload or anno == DatastarPayload):
         return datastar_payload
     
     # Check query params FIRST, before anything else (highest priority)

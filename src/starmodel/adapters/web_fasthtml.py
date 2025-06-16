@@ -231,3 +231,18 @@ def register_entities(router, entity_classes: list, uow: UnitOfWork) -> None:
     """
     for entity_class in entity_classes:
         include_entity(router, entity_class, uow)
+
+def register_all_entities(router) -> None:
+    """
+    Register all entities in the current module.
+    """
+    try:
+        from starmodel import UnitOfWork, InProcessBus, persistence_manager
+        uow = UnitOfWork(persistence_manager, InProcessBus())
+        for e in Entity.__subclasses__():
+            include_entity(router, e, uow)
+    except Exception as e:
+        print(f"Error registering all entities: {e}")
+
+
+

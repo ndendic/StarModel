@@ -15,7 +15,7 @@ from .persistence import (
 # Import new application service layer components
 from .app import call_event, UnitOfWork, InProcessBus
 from .adapters.persistence import persistence_manager
-from .adapters.web_fasthtml import include_entity, register_entities
+from .adapters.web_fasthtml import include_entity, register_entities, register_all_entities
 
 __all__ = [
     # Core entity components
@@ -34,7 +34,7 @@ __all__ = [
     'persistence_manager',
     'include_entity',
     'register_entities',
-    
+    'register_all_entities',
     # Persistence layer
     'EntityStore',
     'EntityPersistenceBackend',
