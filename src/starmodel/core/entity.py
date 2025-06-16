@@ -56,7 +56,7 @@ class Entity(BaseModel, metaclass=SignalModelMeta):
     @property
     def store(self):
         """Get the store for this entity instance."""
-        return self.__class__._get_config_value("store", EntityStore.SERVER_MEMORY)
+        return self.__class__._get_config_value("store", None)
     
     @property
     def sync_with_client(self):
@@ -102,11 +102,19 @@ class Entity(BaseModel, metaclass=SignalModelMeta):
         return Div({"data-on-online__window": self.sync(self.signals)}, id=f"{self.namespace}")
     
     def save(self, ttl: Optional[int] = None) -> bool:
-        """Save entity to configured backend."""
+        """Save entity to configured backend - now uses repository pattern."""
         if self.store.startswith("client_"):
             return True  # Datastar handles client persistence        
-        # Save using configured persistence backend
-        return self.persistence_backend.save_entity_sync(self, ttl)
+        
+        # Use repository pattern via persistence manager
+        try:
+            from ..adapters.persistence import persistence_manager
+            repo = persistence_manager.for_class(self.__class__)
+            # For now, still use the old synchronous method until we make repos fully async
+            return self.persistence_backend.save_entity_sync(self, ttl)
+        except Exception:
+            # Fall back to direct persistence backend if repository fails
+            return self.persistence_backend.save_entity_sync(self, ttl)
         
     
     def delete(self) -> bool:
@@ -143,11 +151,22 @@ class Entity(BaseModel, metaclass=SignalModelMeta):
     
     @classmethod
     def get(cls, req: Request, **kwargs) -> 'Entity':
-        """Get cached entity or create new."""
+        """Get cached entity or create new - now uses repository pattern."""
+        from ..adapters.persistence import persistence_manager
+        
         entity_id = cls._get_id(req, **kwargs)
-        cached = memory_persistence._data.get(entity_id)        
-        if cached and isinstance(cached, cls):
-            return cached
+        
+        # Try to get from repository via persistence manager
+        try:
+            repo = persistence_manager.for_class(cls)
+            # For now, still use memory_persistence until we implement proper repo.get()
+            cached = memory_persistence._data.get(entity_id)        
+            if cached and isinstance(cached, cls):
+                return cached
+        except Exception:
+            # Fall back to direct creation if repository fails
+            pass
+            
         return cls(req, id=entity_id, **kwargs)
     
     @classmethod

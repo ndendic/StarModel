@@ -12,6 +12,11 @@ from .persistence import (
     MemoryEntityPersistence, memory_persistence
 )
 
+# Import new application service layer components
+from .app import call_event, UnitOfWork, InProcessBus
+from .adapters.persistence import persistence_manager
+from .adapters.web_fasthtml import include_entity, register_entities
+
 __all__ = [
     # Core entity components
     'Entity',
@@ -19,10 +24,19 @@ __all__ = [
     'datastar_script',
     'DatastarPayload',
     'entities_rt',
-    # Registry
-    'EntityStore',
+    
+    # Application service layer
+    'call_event',
+    'UnitOfWork',
+    'InProcessBus',
+    
+    # Adapters
+    'persistence_manager',
+    'include_entity',
+    'register_entities',
     
     # Persistence layer
+    'EntityStore',
     'EntityPersistenceBackend',
     'MemoryEntityPersistence',
     'memory_persistence',

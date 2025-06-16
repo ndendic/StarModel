@@ -58,7 +58,23 @@ app, rt = fast_app(
 )
 
 add_routes(app)
-# Import and add entity routes
+# Import and register entity routes using new application service layer
+from starmodel import UnitOfWork, InProcessBus, persistence_manager, register_entities
+
+# Create application service layer components
+bus = InProcessBus()
+uow = UnitOfWork(persistence_manager, bus)
+
+# Import all entities
+from entities.landing import LandingEntity
+from pages.counter import CounterEntity  
+from entities.dashboard import DashboardEntity
+
+# Register entities with FastHTML adapter
+entity_classes = [LandingEntity, CounterEntity, DashboardEntity]
+register_entities(rt, entity_classes, uow)
+
+# Keep old route registration for backward compatibility
 entities_rt.to_app(app)
 
 if __name__ == "__main__":
