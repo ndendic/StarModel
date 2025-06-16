@@ -4,11 +4,11 @@ from starmodel import *
 
 rt = APIRouter()
 
-class ProductState(State):
-    """Record-scoped state - tied to specific product records."""
+class ProductEntity(Entity):
+    """Record-scoped entity - tied to specific product records."""
     model_config = {
         "arbitrary_types_allowed": True,
-        "starmodel_store": StateStore.SERVER_MEMORY,
+        "starmodel_store": EntityStore.SERVER_MEMORY,
         "starmodel_auto_persist": True,
         "starmodel_persistence_backend": memory_persistence,
         "starmodel_ttl": 7200,
@@ -20,7 +20,7 @@ class ProductState(State):
     in_stock: bool = True
     
     @classmethod
-    def _generate_state_id(cls, req, **kwargs):
+    def _generate_entity_id(cls, req, **kwargs):
         # Generate product-specific ID from URL path
         product_id = req.path_params.get('id', 'default') if req else 'default'
         return f"product_{product_id}"
@@ -41,11 +41,11 @@ class ProductState(State):
 @rt('/product/{record_id}')
 def product_detail(req: Request, sess: dict, record_id: int, auth: str = None):
     """
-    Product detail page with record-scoped state.
-    Demonstrates state tied to specific database records.
+    Product detail page with record-scoped entity.
+    Demonstrates entity tied to specific database records.
     """
-    # State automatically injected by FastHTML integration
-    product = ProductState.get(req)
+    # Entity automatically injected by FastHTML integration
+    product = ProductEntity.get(req)
 
     # Initialize product data if empty (simulating database load)
     if not product.name:
@@ -58,7 +58,7 @@ def product_detail(req: Request, sess: dict, record_id: int, auth: str = None):
             Div(
                 H1(f"📦 Product {record_id}", cls="text-3xl font-bold mb-6"),
                 
-                # Product state display
+                # Product entity display
                 product,
                 # Product information
                 Div(
@@ -86,10 +86,10 @@ def product_detail(req: Request, sess: dict, record_id: int, auth: str = None):
                               cls="border rounded px-3 py-2 mb-3 w-full"),
                         Button("Update Product", type="submit", 
                                cls="bg-green-500 text-white px-6 py-2 rounded mr-2"),
-                        data_on_submit=ProductState.update_product()
+                        data_on_submit=ProductEntity.update_product()
                     ),
                     Button("Toggle Stock Status", 
-                           data_on_click=ProductState.toggle_stock(),
+                           data_on_click=ProductEntity.toggle_stock(),
                            cls="bg-blue-500 text-white px-4 py-2 rounded mt-4"),
                     cls="mb-6"
                 ),

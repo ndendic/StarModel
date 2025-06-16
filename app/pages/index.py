@@ -2,52 +2,9 @@ from fasthtml.common import *
 from monsterui.all import *
 from starmodel import *
 from pages.templates import page_template
-import random
+from entities import LandingEntity
 
 rt = APIRouter()
-
-class LandingState(State):
-    """Premium interactive landing page showcasing StarModel's revolutionary capabilities."""
-    live_counter: int = 0
-    active_connections: int = 847
-    lines_written: int = 50281
-    deploy_status: str = "✅ Production"
-    github_stars: int = 1247
-    npm_downloads: str = "12.4k/week"
-    response_time: str = "<1ms"
-    code_completion: int = 0
-    demo_message: str = "Hello, StarModel!"
-    performance_score: int = 99
-    
-    @event
-    def pulse_counter(self, amount: int = 1):
-        if amount == 0:
-            self.live_counter = 0
-        elif amount == -1:
-            self.live_counter = max(0, self.live_counter - 1)
-        else:
-            self.live_counter += amount
-        self.active_connections += random.randint(1, 3)
-        self.lines_written += random.randint(5, 25)
-        
-    @event
-    def simulate_deploy(self):
-        statuses = ["🚀 Deploying...", "✅ Production", "⚡ Building", "🔄 Updating"]
-        current_idx = statuses.index(self.deploy_status) if self.deploy_status in statuses else 0
-        self.deploy_status = statuses[(current_idx + 1) % len(statuses)]
-        
-    @event
-    def update_demo_message(self, msg: str):
-        self.demo_message = msg
-        
-    @event 
-    def simulate_typing(self):
-        self.code_completion = min(100, self.code_completion + 10)
-        
-    @event
-    def boost_performance(self):
-        self.performance_score = random.randint(95, 100)
-        self.response_time = f"<{random.randint(1,3)}ms"
 
 def premium_hero():
     """Revolutionary hero section with interactive code playground and real-time preview."""
@@ -80,7 +37,7 @@ def premium_hero():
                 # Main headline with gradient text
                 Div(
                     H1(
-                        "Reactive State Management",
+                        "Reactive Entity Management",
                         Br(),
                         Span("Redefined", cls="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent"),
                         cls="text-6xl md:text-7xl font-bold text-center leading-tight mb-6"
@@ -127,10 +84,10 @@ def premium_hero():
                             # Code block with premium styling
                             Pre(
                                 Code(
-                                    """from starmodel import State, event
+                                    """from starmodel import Entity, event
 from fasthtml.common import *
 
-class DemoState(State):
+class DemoEntity(Entity):
     message: str = "Hello, StarModel!"
     count: int = 0
     status: str = "Ready"
@@ -146,14 +103,14 @@ class DemoState(State):
         
 @rt('/demo')
 def demo_page(req):
-    state = DemoState.get(req)
+    entity = DemoEntity.get(req)
     return Main(
-        state,  # Auto-sync state
+        entity,  # Auto-sync entity
         Card(
-            H2(data_text=DemoState.message_signal),
-            P(f"Count: {state.count}"),
+            H2(data_text=DemoEntity.message_signal),
+            P(f"Count: {entity.count}"),
             Button("Click Me!", 
-                   data_on_click=DemoState.increment())
+                   data_on_click=DemoEntity.increment())
         )
     )""",
                                     cls="language-python text-sm leading-relaxed font-mono"
@@ -169,7 +126,7 @@ def demo_page(req):
                                         DivLAligned(
                                             UkIcon("zap", cls="w-4 h-4 text-green-500"),
                                             Span("Updates: ", cls="text-sm text-muted-foreground"),
-                                            Span(data_text=LandingState.live_counter_signal, 
+                                            Span(data_text=LandingEntity.live_counter_signal, 
                                                 cls="font-mono font-bold text-green-500"),
                                             cls="gap-2"
                                         )
@@ -178,7 +135,7 @@ def demo_page(req):
                                         DivLAligned(
                                             UkIcon("users", cls="w-4 h-4 text-blue-500"),
                                             Span("Active: ", cls="text-sm text-muted-foreground"),
-                                            Span(data_text=LandingState.active_connections_signal, 
+                                            Span(data_text=LandingEntity.active_connections_signal, 
                                                 cls="font-mono font-bold text-blue-500"),
                                             cls="gap-2"
                                         )
@@ -187,7 +144,7 @@ def demo_page(req):
                                         DivLAligned(
                                             UkIcon("activity", cls="w-4 h-4 text-purple-500"),
                                             Span("Status: ", cls="text-sm text-muted-foreground"),
-                                            Span(data_text=LandingState.deploy_status_signal, 
+                                            Span(data_text=LandingEntity.deploy_status_signal, 
                                                 cls="font-mono text-xs text-purple-500"),
                                             cls="gap-2"
                                         )
@@ -220,7 +177,7 @@ def demo_page(req):
                                 Button(
                                     UkIcon("rocket", cls="w-4 h-4 mr-1"),
                                     Span("Deploy", cls="text-xs font-semibold"),
-                                    data_on_click=LandingState.simulate_deploy(),
+                                    data_on_click=LandingEntity.simulate_deploy(),
                                     cls="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white px-3 py-1 rounded-lg text-xs transition-all duration-300 shadow-lg hover:shadow-xl flex items-center"
                                 ),
                                 cls="justify-between w-full"
@@ -243,14 +200,14 @@ def demo_page(req):
                                     DivCentered(
                                         Div(
                                             Span("Message: ", cls="text-muted-foreground text-sm"),
-                                            H2(data_text=LandingState.demo_message_signal, 
+                                            H2(data_text=LandingEntity.demo_message_signal, 
                                                cls="text-2xl font-bold text-primary mb-4"),
                                             cls="mb-6"
                                         ),
                                         
                                         Div(
                                             Span("Count: ", cls="text-muted-foreground mr-2"),
-                                            Span(data_text=LandingState.live_counter_signal, 
+                                            Span(data_text=LandingEntity.live_counter_signal, 
                                                 cls="font-mono text-3xl font-bold text-green-500"),
                                             cls="mb-6 flex items-center justify-center"
                                         ),
@@ -259,12 +216,12 @@ def demo_page(req):
                                             Button(
                                                 UkIcon("plus", cls="w-4 h-4 mr-1"),
                                                 "Click Me!",
-                                                data_on_click=LandingState.pulse_counter(),
+                                                data_on_click=LandingEntity.pulse_counter(),
                                                 cls="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-all duration-300 shadow-lg hover:shadow-xl flex items-center"
                                             ),
                                             Button(
                                                 "Reset",
-                                                data_on_click=LandingState.pulse_counter(0),
+                                                data_on_click=LandingEntity.pulse_counter(0),
                                                 cls="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg transition-all duration-300"
                                             ),
                                             cls="gap-3 justify-center"
@@ -279,7 +236,7 @@ def demo_page(req):
                                     Card(
                                         DivCentered(
                                             UkIcon("zap", cls="w-6 h-6 text-green-500 mb-2"),
-                                            Span(data_text=LandingState.performance_score_signal, 
+                                            Span(data_text=LandingEntity.performance_score_signal, 
                                                 cls="text-xl font-bold text-green-500"),
                                             P("Performance", cls="text-xs text-muted-foreground")
                                         ),
@@ -288,7 +245,7 @@ def demo_page(req):
                                     Card(
                                         DivCentered(
                                             UkIcon("clock", cls="w-6 h-6 text-blue-500 mb-2"),
-                                            Span(data_text=LandingState.response_time_signal, 
+                                            Span(data_text=LandingEntity.response_time_signal, 
                                                 cls="text-xl font-bold text-blue-500"),
                                             P("Response Time", cls="text-xs text-muted-foreground")
                                         ),
@@ -297,7 +254,7 @@ def demo_page(req):
                                     Card(
                                         DivCentered(
                                             UkIcon("activity", cls="w-6 h-6 text-purple-500 mb-2"),
-                                            Span(data_text=LandingState.active_connections_signal, 
+                                            Span(data_text=LandingEntity.active_connections_signal, 
                                                 cls="text-xl font-bold text-purple-500"),
                                             P("Active Users", cls="text-xs text-muted-foreground")
                                         ),
@@ -321,7 +278,7 @@ def demo_page(req):
                             Div(
                                 DivLAligned(
                                     UkIcon("github", cls="w-5 h-5 text-gray-600"),
-                                    Span(data_text=LandingState.github_stars_signal, cls="font-bold text-foreground"),
+                                    Span(data_text=LandingEntity.github_stars_signal, cls="font-bold text-foreground"),
                                     Span("stars", cls="text-muted-foreground text-sm"),
                                     cls="gap-2"
                                 )
@@ -329,7 +286,7 @@ def demo_page(req):
                             Div(
                                 DivLAligned(
                                     UkIcon("download", cls="w-5 h-5 text-green-600"),
-                                    Span(data_text=LandingState.npm_downloads_signal, cls="font-bold text-foreground"),
+                                    Span(data_text=LandingEntity.npm_downloads_signal, cls="font-bold text-foreground"),
                                     Span("downloads", cls="text-muted-foreground text-sm"),
                                     cls="gap-2"
                                 )
@@ -337,7 +294,7 @@ def demo_page(req):
                             Div(
                                 DivLAligned(
                                     UkIcon("code", cls="w-5 h-5 text-blue-600"),
-                                    Span(data_text=LandingState.lines_written_signal, cls="font-bold text-foreground"),
+                                    Span(data_text=LandingEntity.lines_written_signal, cls="font-bold text-foreground"),
                                     Span("lines written", cls="text-muted-foreground text-sm"),
                                     cls="gap-2"
                                 )
@@ -400,7 +357,7 @@ def premium_features():
                         ),
                         
                         H3("Real-time Reactivity", cls="text-2xl font-bold text-foreground mb-4"),
-                        P("Watch your UI update instantly as state changes. Zero manual DOM manipulation or complex state synchronization.",
+                        P("Watch your UI update instantly as entity changes. Zero manual DOM manipulation or complex entity synchronization.",
                           cls="text-muted-foreground mb-6 leading-relaxed"),
                         
                         # Interactive demo widget
@@ -409,13 +366,13 @@ def premium_features():
                                 P("Live Demo: ", cls="text-sm text-muted-foreground mb-2"),
                                 Div(
                                     Span("Updates: ", cls="text-sm mr-2"),
-                                    Span(data_text=LandingState.live_counter_signal, 
+                                    Span(data_text=LandingEntity.live_counter_signal, 
                                         cls="font-mono font-bold text-2xl text-yellow-500"),
                                     cls="flex items-center justify-center mb-3"
                                 ),
                                 Button(
                                     "✨ Update",
-                                    data_on_click=LandingState.pulse_counter(),
+                                    data_on_click=LandingEntity.pulse_counter(),
                                     cls="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 shadow-md hover:shadow-lg"
                                 )
                             ),
@@ -507,18 +464,18 @@ def handle_click(self):
                         Div(
                             UkIcon("trending-up", cls="w-12 h-12 text-blue-500 mb-4"),
                             H4("Enterprise Performance", cls="text-xl font-bold text-foreground mb-2"),
-                            P("Built for scale with efficient server-sent events and optimized state synchronization.",
+                            P("Built for scale with efficient server-sent events and optimized entity synchronization.",
                               cls="text-muted-foreground text-sm")
                         ),
                         Div(
                             Grid(
                                 Div(
-                                    Span(data_text=LandingState.performance_score_signal, 
+                                    Span(data_text=LandingEntity.performance_score_signal, 
                                         cls="text-2xl font-bold text-blue-500"),
                                     P("Performance Score", cls="text-xs text-muted-foreground")
                                 ),
                                 Div(
-                                    Span(data_text=LandingState.response_time_signal, 
+                                    Span(data_text=LandingEntity.response_time_signal, 
                                         cls="text-2xl font-bold text-green-500"),
                                     P("Response Time", cls="text-xs text-muted-foreground")
                                 ),
@@ -585,7 +542,7 @@ def social_proof_section():
                     Div(
                         DivCentered(
                             UkIcon("github", cls="w-8 h-8 text-gray-700 mb-2"),
-                            Span(data_text=LandingState.github_stars_signal, 
+                            Span(data_text=LandingEntity.github_stars_signal, 
                                 cls="text-3xl font-bold text-foreground"),
                             P("GitHub Stars", cls="text-sm text-muted-foreground")
                         )
@@ -593,7 +550,7 @@ def social_proof_section():
                     Div(
                         DivCentered(
                             UkIcon("download", cls="w-8 h-8 text-green-600 mb-2"),
-                            Span(data_text=LandingState.npm_downloads_signal, 
+                            Span(data_text=LandingEntity.npm_downloads_signal, 
                                 cls="text-3xl font-bold text-foreground"),
                             P("Weekly Downloads", cls="text-sm text-muted-foreground")
                         )
@@ -601,7 +558,7 @@ def social_proof_section():
                     Div(
                         DivCentered(
                             UkIcon("users", cls="w-8 h-8 text-blue-600 mb-2"),
-                            Span(data_text=LandingState.active_connections_signal, 
+                            Span(data_text=LandingEntity.active_connections_signal, 
                                 cls="text-3xl font-bold text-foreground"),
                             P("Active Developers", cls="text-sm text-muted-foreground")
                         )
@@ -609,7 +566,7 @@ def social_proof_section():
                     Div(
                         DivCentered(
                             UkIcon("code", cls="w-8 h-8 text-purple-600 mb-2"),
-                            Span(data_text=LandingState.lines_written_signal, 
+                            Span(data_text=LandingEntity.lines_written_signal, 
                                 cls="text-3xl font-bold text-foreground"),
                             P("Lines of Code", cls="text-sm text-muted-foreground")
                         )
@@ -811,7 +768,7 @@ def premium_footer():
                         href="/",
                         cls="flex items-center mb-4 no-underline"
                     ),
-                    P("Reactive state management for Python. Build interactive web applications without the complexity.",
+                    P("Reactive entity management for Python. Build interactive web applications without the complexity.",
                       cls="text-muted-foreground mb-6 max-w-sm leading-relaxed"),
                     
                     # Social links
@@ -887,13 +844,13 @@ def premium_footer():
     )
 
 @rt('/')
-@page_template(title="⭐ StarModel - Reactive State Management for Python")
+@page_template(title="⭐ StarModel - Reactive Entity Management for Python")
 def index(req: Request):
     """Revolutionary landing page showcasing StarModel's reactive magic."""
-    state = LandingState.get(req)
+    entity = LandingEntity.get(req)
     
     return Main(
-        state,
+        entity,
         premium_hero(),
         premium_features(), 
         social_proof_section(),
@@ -906,15 +863,15 @@ def index(req: Request):
 @page_template(title="StarModel Live Demo")
 def demo(req: Request):
     """Enhanced interactive demo playground."""
-    state = LandingState.get(req)
+    entity = LandingEntity.get(req)
     
     return Main(
-        state,
+        entity,
         Container(
         DivCentered(
             H1("🧪 StarModel Interactive Playground", 
                cls="text-4xl font-bold text-foreground mb-4"),
-            P("Experience real-time state management in action", 
+            P("Experience real-time entity management in action", 
               cls="text-muted-foreground mb-8")
         ),
         
@@ -923,14 +880,14 @@ def demo(req: Request):
                 H3("Live Counter Demo", cls="text-xl font-bold text-foreground mb-4"),
                 DivCentered(
                     P("Current Value:", cls="text-muted-foreground"),
-                    Span(data_text=LandingState.live_counter_signal, 
+                    Span(data_text=LandingEntity.live_counter_signal, 
                         cls="text-4xl font-mono font-bold text-primary block my-4"),
                     DivLAligned(
-                        Button("−", data_on_click=LandingState.pulse_counter(-1), 
+                        Button("−", data_on_click=LandingEntity.pulse_counter(-1), 
                               cls=ButtonT.secondary + " w-12"),
-                        Button("Reset", data_on_click=LandingState.pulse_counter(0), 
+                        Button("Reset", data_on_click=LandingEntity.pulse_counter(0), 
                               cls=ButtonT.ghost),
-                        Button("+", data_on_click=LandingState.pulse_counter(), 
+                        Button("+", data_on_click=LandingEntity.pulse_counter(), 
                               cls=ButtonT.primary + " w-12"),
                         cls="gap-3"
                     )
@@ -942,12 +899,12 @@ def demo(req: Request):
                 Grid(
                     Div(
                         P("Live Updates", cls="text-muted-foreground text-sm"),
-                        Span(data_text=LandingState.live_counter_signal, 
+                        Span(data_text=LandingEntity.live_counter_signal, 
                             cls="text-2xl font-bold text-primary")
                     ),
                     Div(
                         P("Connections", cls="text-muted-foreground text-sm"),
-                        Span(data_text=LandingState.active_connections_signal, 
+                        Span(data_text=LandingEntity.active_connections_signal, 
                             cls="text-2xl font-bold text-primary")
                     ),
                     cols=2, gap=4

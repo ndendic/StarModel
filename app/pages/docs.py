@@ -6,7 +6,7 @@ import random
 
 rt = APIRouter()
 
-class Docs(State):
+class Docs(Entity):
     """Documentation page for StarModel."""
     pass
 
