@@ -8,11 +8,11 @@ from datetime import datetime
 rt = APIRouter()
 
 
-class TaskManager(State):
+class TaskManager(Entity):
     model_config = {
         "namespace": "TaskManager",  # Custom namespace (default: class name)
         "use_namespace": True,       # Use namespaced signals: $TaskManager.field
-        "store": StateStore.SERVER_MEMORY,  # Storage backend
+        "store": EntityStore.SERVER_MEMORY,  # Storage backend
         "auto_persist": True,        # Auto-save after each event
         "sync_with_client": True,    # Auto-sync with client signals
     }

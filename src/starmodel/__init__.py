@@ -1,32 +1,29 @@
 """
-StarModel - Reactive State Management for FastHTML
+StarModel - Reactive Entity Management for FastHTML
 
-A powerful state management system that integrates with FastHTML's dependency injection
-to provide automatic state management with scoping and real-time updates.
+A powerful entity management system that integrates with FastHTML's dependency injection
+to provide automatic entity management with scoping and real-time updates.
 """
-from .state import State, datastar_script
-from .event import event, DatastarPayload
-from .event import rt as states_rt
+
+# Import from new organized modules while maintaining backward compatibility
+from .core import Entity, event, datastar_script, DatastarPayload, rt as entities_rt
 from .persistence import (
-    StateStore, StatePersistenceBackend, # RedisStatePersistence, DatabaseStatePersistence, 
-    MemoryStatePersistence, memory_persistence
+    EntityStore, EntityPersistenceBackend, 
+    MemoryEntityPersistence, memory_persistence
 )
 
-
 __all__ = [
-    # Core state components
-    'State',
+    # Core entity components
+    'Entity',
     'event',
     'datastar_script',
     'DatastarPayload',
-    'states_rt',
+    'entities_rt',
     # Registry
-    'StateStore',
+    'EntityStore',
     
     # Persistence layer
-    'StatePersistenceBackend',
-    # 'RedisStatePersistence', 
-    # 'DatabaseStatePersistence',
-    'MemoryStatePersistence',
+    'EntityPersistenceBackend',
+    'MemoryEntityPersistence',
     'memory_persistence',
 ]

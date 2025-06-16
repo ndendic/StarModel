@@ -5,11 +5,11 @@ import json
 
 rt = APIRouter()
 
-class UserProfileState(State):
-    """User-scoped state - persists across sessions for authenticated users."""
+class UserProfileEntity(Entity):
+    """User-scoped entity - persists across sessions for authenticated users."""
     model_config = {
         "arbitrary_types_allowed": True,
-        "starmodel_store": StateStore.SERVER_MEMORY,
+        "starmodel_store": EntityStore.SERVER_MEMORY,
         "starmodel_auto_persist": True,
         "starmodel_persistence_backend": memory_persistence,
         "starmodel_ttl": 3600,
@@ -20,7 +20,7 @@ class UserProfileState(State):
     preferences: dict = {}
     
     @classmethod
-    def _generate_state_id(cls, req, **kwargs):
+    def _generate_entity_id(cls, req, **kwargs):
         # Generate user-specific ID from auth or session
         auth = kwargs.get('auth') or (req.scope.get('auth') if req else None)
         user_id = auth or 'anonymous'
@@ -66,7 +66,7 @@ def login_demo(req: Request, sess: dict):
                 
                 Div(
                     H3("Quick Auth Examples", cls="text-lg font-bold mb-4"),
-                    P("Click these links to simulate different authentication states:", cls="mb-4"),
+                    P("Click these links to simulate different authentication entities:", cls="mb-4"),
                     
                     Div(
                         A("Login as Regular User", href="/auth-demo?user=john&permissions=", 
@@ -111,18 +111,18 @@ def auth_demo(req: Request, sess: dict, user: str = "", permissions: str = ""):
 @rt('/profile')
 def profile(req: Request, sess: dict, auth: str = None):
     """
-    User profile page with user-scoped state.
-    Uses simple .get() method for state resolution.
+    User profile page with user-scoped entity.
+    Uses simple .get() method for entity resolution.
     """
-    # Simple, explicit state resolution
-    profile = UserProfileState.get(req)
+    # Simple, explicit entity resolution
+    profile = UserProfileEntity.get(req)
     
     return Titled("User Profile",
         Main(
             Div(
                 H1("👤 User Profile", cls="text-3xl font-bold mb-6"),
                 
-                # Profile state display
+                # Profile entity display
                 Div(data_signals=json.dumps(profile.model_dump()), id="profile-updates"),
                 
                 # Profile information
@@ -146,9 +146,9 @@ def profile(req: Request, sess: dict, auth: str = None):
                               data_bind="$name", cls="border rounded px-3 py-2 mb-3 w-full"),
                         Input(value=profile.email, name="email", placeholder="Email Address", 
                               data_bind="$email", cls="border rounded px-3 py-2 mb-3 w-full"),
-                        Button("Update Profile", type="submit", data_on_click=UserProfileState.update_profile(),
+                        Button("Update Profile", type="submit", data_on_click=UserProfileEntity.update_profile(),
                                cls="bg-blue-500 text-white px-6 py-2 rounded"),
-                        data_on_submit=UserProfileState.update_profile()
+                        data_on_submit=UserProfileEntity.update_profile()
                     ),
                     cls="mb-6"
                 ),

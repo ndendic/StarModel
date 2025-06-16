@@ -58,8 +58,8 @@ app, rt = fast_app(
 )
 
 add_routes(app)
-# Import and add state routes
-states_rt.to_app(app)
+# Import and add entity routes
+entities_rt.to_app(app)
 
 if __name__ == "__main__":
     print("\n" + "="*60)

@@ -127,10 +127,10 @@ async def _wrap_req_with_datastar(req: Request, params: Dict[str, inspect.Parame
     
     return result
 
-def _register_event_route(state_cls, method, config):
+def _register_event_route(entity_cls, method, config):
     """Register an event method as a FastHTML route using FastHTML's parameter injection system."""
     # Generate route path
-    path = config.get('path') or f"/{state_cls.__name__}/{method.__name__}"
+    path = config.get('path') or f"/{entity_cls.__name__}/{method.__name__}"
     methods = [config.get('method', 'get').upper()]
     selector = config.get('selector')
     merge_mode = config.get('merge_mode', 'morph')
@@ -143,17 +143,17 @@ def _register_event_route(state_cls, method, config):
     
     # Create the route handler using FastHTML patterns
     async def event_handler(request: Request):
-        # Get state instance (this handles session, auth extraction internally)
-        state = state_cls.get(request)
+        # Get entity instance (this handles session, auth extraction internally)
+        entity = entity_cls.get(request)
         
         # Use enhanced parameter resolution system with Datastar support
         # This handles all parameter extraction including Datastar payload
-        namespace = state.namespace if state.use_namespace else None
+        namespace = entity.namespace if entity.use_namespace else None
         wrapped_params = await _wrap_req_with_datastar(request, sig.parameters, namespace=namespace)
         
         # Call the method with resolved parameters (skip 'self' which is index 0)
-        # The state instance replaces 'self', so we use state + params[1:]
-        method_params = [state] + wrapped_params[1:]
+        # The entity instance replaces 'self', so we use entity + params[1:]
+        method_params = [entity] + wrapped_params[1:]
         
         # Check if method is async before calling _handle
         if inspect.iscoroutinefunction(method):
@@ -161,23 +161,23 @@ def _register_event_route(state_cls, method, config):
         else:
             result = method(*method_params)
         
-        # Auto-persist state changes if configured
-        if state.auto_persist and not state.store.startswith("client_"):
-            state.save()
+        # Auto-persist entity changes if configured
+        if entity.auto_persist and not entity.store.startswith("client_"):
+            entity.save()
         
         # Handle async generators and regular returns
         async def sse_stream():            
-            # Always send current state signals first
-            yield SSE.merge_signals(state.signals)
+            # Always send current entity signals first
+            yield SSE.merge_signals(entity.signals)
             
             if hasattr(result, '__aiter__'):  # Async generator
                 async for item in result:
-                    # Auto-persist state changes after each yield if configured
-                    if state.auto_persist and not state.store.startswith("client_"):
-                        state.save()
+                    # Auto-persist entity changes after each yield if configured
+                    if entity.auto_persist and not entity.store.startswith("client_"):
+                        entity.save()
                     
-                    # Send updated state after each yield
-                    yield SSE.merge_signals(state.signals)
+                    # Send updated entity after each yield
+                    yield SSE.merge_signals(entity.signals)
                     if item and (hasattr(item, '__ft__') or isinstance(item, FT)):  # FT component
                         fragments = [to_xml(item)]
                         if selector:
@@ -201,10 +201,10 @@ def _register_event_route(state_cls, method, config):
     # Register with APIRouter following FastHTML pattern
     rt(path, methods=methods, name=name, include_in_schema=include_in_schema, body_wrap=body_wrap)(event_handler)
 
-def _add_url_generator(state_cls, method_name, method, config):
-    """Add URL generator static method to the state class with FastHTML compatibility."""
+def _add_url_generator(entity_cls, method_name, method, config):
+    """Add URL generator static method to the entity class with FastHTML compatibility."""
     # Generate route path (same logic as in _register_event_route)
-    path = config.get('path') or f"/{state_cls.__name__}/{method_name}"
+    path = config.get('path') or f"/{entity_cls.__name__}/{method_name}"
     http_method = config.get('method', 'get')
     
     # Get parameter names from method signature, filtering out FastHTML special params
@@ -247,16 +247,16 @@ def _add_url_generator(state_cls, method_name, method, config):
     url_generator_method = staticmethod(url_generator)
     
     # Store the URL generator on the class, preserving the original method
-    if not hasattr(state_cls, '_url_generators'):
-        state_cls._url_generators = {}
-    state_cls._url_generators[method_name] = url_generator_method
+    if not hasattr(entity_cls, '_url_generators'):
+        entity_cls._url_generators = {}
+    entity_cls._url_generators[method_name] = url_generator_method
     
     # Also set it as a class attribute so it can be accessed as ClassName.method_name()
-    setattr(state_cls, method_name, url_generator_method)
+    setattr(entity_cls, method_name, url_generator_method)
 
 def event(path=None, *, method="get", selector=None, merge_mode="morph", name=None, include_in_schema=True, body_wrap=None):
     """
-    Simplified event decorator for State methods.
+    Simplified event decorator for Entity methods.
     
     Args:
         path: Custom route path (optional, defaults to /{ClassName}/{method_name})

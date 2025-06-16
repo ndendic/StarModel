@@ -1,4 +1,3 @@
-
 from pydantic._internal._model_construction import ModelMetaclass
 
 
@@ -29,4 +28,3 @@ class SignalModelMeta(ModelMetaclass):
             setattr(cls, f"{field_name}_signal", SignalDescriptor(field_name))
         for field_name in cls.model_computed_fields:
             setattr(cls, f"{field_name}_signal", SignalDescriptor(field_name))
-

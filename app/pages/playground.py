@@ -5,13 +5,13 @@ from pages.templates import page_template
 
 rt = APIRouter()
 
-class LandingState(State):
+class LandingEntity(Entity):
     """Interactive landing page showcasing StarModel's reactive magic."""
     live_counter: int = 0
     active_connections: int = 1
     lines_written: int = 42
     deploy_status: str = "Ready"
-    demo_code: str = """class TodoState(State):
+    demo_code: str = """class TodoEntity(Entity):
     items: list = []
     count: int = 0
     
@@ -31,15 +31,15 @@ class LandingState(State):
         self.deploy_status = "Deploying..." if self.deploy_status == "Ready" else "Ready"
 
 @rt('/playground')
-@page_template(title="⭐ StarModel - Reactive State Management for Python")
+@page_template(title="⭐ StarModel - Reactive Entity Management for Python")
 def index(req: Request):
     """Revolutionary landing page showcasing StarModel's reactive magic."""
-    state = LandingState.get(req)
+    entity = LandingEntity.get(req)
     
     return Main(
-        state,
+        entity,
         CodeBlock("""
-from starmodel import State, event
+from starmodel import Entity, event
         """),
         cls="min-h-screen"
     )

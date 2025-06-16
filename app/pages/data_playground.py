@@ -3,7 +3,7 @@ from fasthtml.core import APIRouter
 from monsterui.all import *
 from monsterui.franken import Grid as Grd
 from pages.templates import app_template
-from starmodel import State, event
+from starmodel import Entity, event
 from .components.charts import Apex_Chart, ChartT, construct_script
 from pydantic import BaseModel, computed_field
 from typing import Dict, List, Any, Optional
@@ -56,10 +56,10 @@ SAMPLE_DATASETS = {
     }
 }
 
-class DataPlaygroundState(State):
-    """Dynamic state for CSV data visualization with arbitrary fields."""
+class DataPlaygroundEntity(Entity):
+    """Dynamic entity for CSV data visualization with arbitrary fields."""
     
-    # Core UI state
+    # Core UI entity
     uploaded_filename: str = ""
     total_rows: int = 0
     total_columns: int = 0
@@ -69,14 +69,14 @@ class DataPlaygroundState(State):
     group_column: str = ""
     filter_active: bool = False
 
-    # Data state
+    # Data entity
     raw_data: List[Dict[str, Any]] = []
     filtered_data: List[Dict[str, Any]] = []
     column_names: List[str] = []
     column_types: Dict[str, str] = {}
     column_stats: Dict[str, Dict[str, Any]] = {}
     
-    # Chart state
+    # Chart entity
     chart_title: str = "Data Visualization"
     show_legend: bool = True
     
@@ -291,7 +291,7 @@ class DataPlaygroundState(State):
             )
     
     async def upload_csv_data(self, csv_content: str, filename: str):
-        """Process uploaded CSV data and create dynamic state."""
+        """Process uploaded CSV data and create dynamic entity."""
         print(f"Uploading CSV: {filename}, content length: {len(csv_content)}")  # Debug output
         try:
             # Parse CSV content
@@ -311,7 +311,7 @@ class DataPlaygroundState(State):
                     self.column_types[col] = self.detect_column_type(values)
                     self.column_stats[col] = self.calculate_column_stats(col, values)
                     
-                    # Dynamically add column data as state attributes
+                    # Dynamically add column data as entity attributes
                     setattr(self, f"{col}_data", values)
                 
                 # Auto-select reasonable defaults
@@ -389,7 +389,7 @@ class DataPlaygroundState(State):
                         Button(
                             UkIcon("upload", cls="w-4 h-4 mr-2"),
                             "Process CSV File",
-                            data_on_click=DataPlaygroundState.process_csv_upload(),
+                            data_on_click=DataPlaygroundEntity.process_csv_upload(),
                             cls="bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-3 rounded-lg font-semibold transition-all duration-300 shadow-lg"
                         ),
                         data_show="$csvFiles.length > 0",
@@ -407,7 +407,7 @@ class DataPlaygroundState(State):
                             P("Monthly sales data across different product categories", cls="text-xs text-muted-foreground mb-4"),
                             Button(
                                 "Load Sample Data",
-                                data_on_click=DataPlaygroundState.load_sample_data("sales_data"),
+                                data_on_click=DataPlaygroundEntity.load_sample_data("sales_data"),
                                 cls="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-lg transition-all duration-300 w-full"
                             ),
                             cls="p-4 border hover:shadow-md transition-all duration-300"
@@ -417,7 +417,7 @@ class DataPlaygroundState(State):
                             P("Daily active users and engagement metrics", cls="text-xs text-muted-foreground mb-4"),
                             Button(
                                 "Load Sample Data",
-                                data_on_click=DataPlaygroundState.load_sample_data("user_analytics"),
+                                data_on_click=DataPlaygroundEntity.load_sample_data("user_analytics"),
                                 cls="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-lg transition-all duration-300 w-full"
                             ),
                             cls="p-4 border hover:shadow-md transition-all duration-300"
@@ -427,7 +427,7 @@ class DataPlaygroundState(State):
                             P("Tech stock prices and trading volumes", cls="text-xs text-muted-foreground mb-4"),
                             Button(
                                 "Load Sample Data",
-                                data_on_click=DataPlaygroundState.load_sample_data("financial_data"),
+                                data_on_click=DataPlaygroundEntity.load_sample_data("financial_data"),
                                 cls="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-lg transition-all duration-300 w-full"
                             ),
                             cls="p-4 border hover:shadow-md transition-all duration-300"
@@ -505,7 +505,7 @@ class DataPlaygroundState(State):
                             Button(
                                 UkIcon(chart["icon"], cls="w-5 h-5 mb-2"),
                                 chart["label"],
-                                data_on_click=DataPlaygroundState.update_chart_settings(chart_type=chart["value"]),
+                                data_on_click=DataPlaygroundEntity.update_chart_settings(chart_type=chart["value"]),
                                 cls=f"flex flex-col items-center p-3 rounded-lg transition-all duration-300 {'bg-primary text-primary-foreground' if self.selected_chart_type == chart['value'] else 'bg-card hover:bg-muted border'}"
                             )
                             for chart in chart_types
@@ -568,7 +568,7 @@ class DataPlaygroundState(State):
                         cls="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-lg w-full"
                     ),
                     
-                    data_on_submit=DataPlaygroundState.update_chart_settings()
+                    data_on_submit=DataPlaygroundEntity.update_chart_settings()
                 ),
                 
                 cols_lg=2, gap=6
@@ -655,9 +655,9 @@ class DataPlaygroundState(State):
                     Button(
                         UkIcon(chart["icon"], cls="w-5 h-5 mb-2"),
                         chart["label"],
-                        data_on_click=DataPlaygroundState.update_chart_settings(chart_type=chart["value"]),
+                        data_on_click=DataPlaygroundEntity.update_chart_settings(chart_type=chart["value"]),
                         cls="p-3 transition-all duration-300",
-                        data_class=f"{{'bg-primary text-primary-foreground': {DataPlaygroundState.selected_chart_type_signal} === '{chart['value']}', 'bg-card hover:bg-muted border': {DataPlaygroundState.selected_chart_type_signal} !== '{chart['value']}'}}"
+                        data_class=f"{{'bg-primary text-primary-foreground': {DataPlaygroundEntity.selected_chart_type_signal} === '{chart['value']}', 'bg-card hover:bg-muted border': {DataPlaygroundEntity.selected_chart_type_signal} !== '{chart['value']}'}}"
                     )
                     for chart in chart_types
                 ],
@@ -765,10 +765,10 @@ class DataPlaygroundState(State):
 @app_template("Data Visualization Playground")
 def data_playground(request):
     """Interactive CSV data visualization playground."""
-    state = DataPlaygroundState.get(request)
+    entity = DataPlaygroundEntity.get(request)
     
     return Div(cls="space-y-6")(
-        state,
+        entity,
         
         # Page header
         DivCentered(
@@ -778,10 +778,10 @@ def data_playground(request):
         ),
         # Upload zone (always present, but hidden when data is loaded)
         Div(
-            state.upload_zone_card(),
+            entity.upload_zone_card(),
             id="upload-zone-container",
-            cls="space-y-6" + (" hidden" if state.is_data_loaded else ""),
-            data_show=f"{DataPlaygroundState.is_data_loaded_signal} === false"
+            cls="space-y-6" + (" hidden" if entity.is_data_loaded else ""),
+            data_show=f"{DataPlaygroundEntity.is_data_loaded_signal} === false"
         ),
         # Main content area
         TabContainer(
@@ -789,17 +789,17 @@ def data_playground(request):
             Li(A("Data Preview")),
             Li(A("Chart Builder")),
             uk_switcher="connect: #component-nav; animation:uk-anmt-fade",
-            data_show=f"{DataPlaygroundState.is_data_loaded_signal}"
+            data_show=f"{DataPlaygroundEntity.is_data_loaded_signal}"
             # alt=True,
         ),
         Ul(id="component-nav", cls="uk-switcher max-w-7xl mx-auto")(
             Li(cls="flex flex-row gap-4")(
-                state.visualization_card(),
-                state.visualization_card(chart_type="pie", id="chart-container-pie")
+                entity.visualization_card(),
+                entity.visualization_card(chart_type="pie", id="chart-container-pie")
             ),        
-            Li(state.data_preview_card()),
-            Li(state.chart_builder_card()),
-            data_show=f"{DataPlaygroundState.is_data_loaded_signal}"
+            Li(entity.data_preview_card()),
+            Li(entity.chart_builder_card()),
+            data_show=f"{DataPlaygroundEntity.is_data_loaded_signal}"
         ),
         id="content"
     )

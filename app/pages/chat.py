@@ -4,11 +4,11 @@ from starmodel import *
 
 rt = APIRouter()
 
-class ChatState(State):
-    """Global chat state for real-time collaboration demo."""
+class ChatEntity(Entity):
+    """Global chat entity for real-time collaboration demo."""
     model_config = {
         "arbitrary_types_allowed": True,
-        "starmodel_store": StateStore.SERVER_MEMORY,
+        "starmodel_store": EntityStore.SERVER_MEMORY,
         "starmodel_auto_persist": True,
         "starmodel_persistence_backend": memory_persistence,
         "starmodel_ttl": None,
@@ -19,7 +19,7 @@ class ChatState(State):
     last_message_id: int = 0
     
     @classmethod
-    def _generate_state_id(cls, req, **kwargs):
+    def _generate_entity_id(cls, req, **kwargs):
         return "global_chat"  # Fixed ID for global access
     
     @event(selector="#chat-messages",  merge_mode="append")
@@ -65,19 +65,19 @@ class ChatState(State):
 @rt('/chat')
 def realtime_chat(req: Request, sess: dict, auth: str = None):
     """
-    Real-time chat demo showcasing global state and SSE broadcasting.
+    Real-time chat demo showcasing global entity and SSE broadcasting.
     """
-    chat = ChatState.get(req)
+    chat = ChatEntity.get(req)
     username = auth or sess.get('auth', 'Anonymous')
     
     return Titled("Real-time Chat",
         Main(
             Div(
                 H1("💬 Real-time Chat Demo", cls="text-3xl font-bold mb-6"),
-                P("This demonstrates global state with real-time SSE broadcasting across all connected users.", 
+                P("This demonstrates global entity with real-time SSE broadcasting across all connected users.", 
                   cls=TextPresets.muted_sm+"mb-6"),
                 
-                # Chat state display
+                # Chat entity display
                 chat,
                 chat.PollDiv(),
                 
@@ -124,7 +124,7 @@ def realtime_chat(req: Request, sess: dict, auth: str = None):
                               cls="border rounded px-3 py-2 mr-2 flex-1"),
                         Button("Send", type="submit", 
                                cls="bg-blue-500 text-white px-6 py-2 rounded"),
-                        data_on_submit=ChatState.send_message(),
+                        data_on_submit=ChatEntity.send_message(),
                         cls="flex mb-4"
                     ),
                     cls="mb-6"
@@ -133,10 +133,10 @@ def realtime_chat(req: Request, sess: dict, auth: str = None):
                 # Chat actions
                 Div(
                     Button("Join Chat", 
-                           data_on_click=ChatState.join_chat(username),
+                           data_on_click=ChatEntity.join_chat(username),
                            cls="bg-green-500 text-white px-4 py-2 rounded mr-2"),
                     Button("Leave Chat", 
-                           data_on_click=ChatState.leave_chat(username),
+                           data_on_click=ChatEntity.leave_chat(username),
                            cls="bg-red-500 text-white px-4 py-2 rounded"),
                     cls="mb-6"
                 ),
