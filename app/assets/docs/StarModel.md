@@ -185,7 +185,7 @@ Button({f"data-on-click": Counter.increment()})  # data-on-click="@get('/Counter
 **StarModel Integration**: Auto-generated from Entity instances
 
 ```python
-class DashboardEntity(Entity):
+class Dashboard(Entity):
     total_sales: int = 0
     revenue: float = 0.0
     active_users: int = 0
@@ -193,7 +193,7 @@ class DashboardEntity(Entity):
 
 @rt("/dashboard")
 def dashboard(req: Request):
-    dashboard = DashboardEntity.get(req)
+    dashboard = Dashboard.get(req)
     
     # Manual signals (if needed)
     manual_signals = {
@@ -212,15 +212,15 @@ def dashboard(req: Request):
         Div(cls="stats")(
             Div(cls="stat")(
                 H3("Total Sales"),
-                Span({f"data-text": DashboardEntity.total_sales_signal})
+                Span({f"data-text": Dashboard.total_sales_signal})
             ),
             Div(cls="stat")(
                 H3("Revenue"),
-                Span({f"data-text": f"'$' + {DashboardEntity.revenue_signal}.toFixed(2)"})
+                Span({f"data-text": f"'$' + {Dashboard.revenue_signal}.toFixed(2)"})
             ),
             Div(cls="stat")(
                 H3("Active Users"),
-                Span({f"data-text": DashboardEntity.active_users_signal})
+                Span({f"data-text": Dashboard.active_users_signal})
             )
         )
     )

@@ -22,15 +22,13 @@ class UnitOfWork:
     3. Transactions can be rolled back if any operation fails
     """
     
-    def __init__(self, repo_manager, bus: 'EventBus'):
+    def __init__(self, bus: 'EventBus'):
         """
         Initialize Unit of Work.
         
         Args:
-            repo_manager: Repository manager for persistence operations
             bus: Event bus for publishing domain events
         """
-        self.repo_manager = repo_manager
         self.bus = bus
         self._events: List[Dict[str, Any]] = []
         self._committed = False
@@ -54,8 +52,9 @@ class UnitOfWork:
         """
         try:
             # Save entity to appropriate repository
-            repo = self.repo_manager.for_class(entity.__class__)
-            await repo.save(entity)
+            if entity.persistence_backend:
+                # await entity.persistence_backend.save_entity_sync(entity)            
+                entity.persistence_backend.save_entity_sync(entity)            
             
             # Collect the command as a domain event
             self.collect_event(command_record)

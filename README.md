@@ -219,7 +219,7 @@ class UserProfile(State):
         # "store": StateStore.CLIENT_SESSION, # Browser sessionStorage
         # "store": StateStore.CLIENT_LOCAL,   # Browser localStorage
         # "store": StateStore.CUSTOM,         # Custom logic
-        "persistence_backend": memory_persistence, # <-- Instance of your persistance manager class
+        "persistence_backend": MemoryRepo(), # <-- Instance of your persistance manager class
     }
 ```
 

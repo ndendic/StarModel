@@ -1,15 +1,19 @@
+import asyncio
+from contextlib import asynccontextmanager
 from fasthtml.common import *
 from monsterui.all import *
 from starmodel import *
+from starmodel.persistence import MemoryRepo
 from route_collector import add_routes
 
 # from starmodel import UnitOfWork, InProcessBus, persistence_manager, register_entities, register_all_entities
 from starmodel import  register_all_entities
 # Import all entities
-from entities.landing import LandingEntity
-from pages.counter import CounterEntity  
-from pages.dashboard import DashboardEntity
-from pages.data_playground import DataPlaygroundEntity
+# from entities.landing import Landing
+# from pages.counter import Counter  
+# from pages.dashboard import Dashboard
+# from pages.data_playground import DataPlaygroundEntity
+
 
 def auth_beforeware(req, sess):
     """
@@ -38,6 +42,28 @@ beforeware = Beforeware(
     ],
 )
 
+async def periodic_cleanup():
+    """Background task to clean up expired entities every 5 minutes."""
+    while True:
+        try:
+            await asyncio.sleep(300)  # 5 minutes
+            cleaned = MemoryRepo().cleanup_expired_sync()
+            if cleaned > 0:
+                print(f"Cleaned up {cleaned} expired entities")
+        except Exception as e:
+            print(f"Error during cleanup: {e}")
+
+@asynccontextmanager
+async def lifespan(app):
+    """Application lifespan manager for background tasks."""
+    # Start cleanup task
+    cleanup_task = asyncio.create_task(periodic_cleanup())
+    print("Background TTL cleanup task started")
+    yield
+    # Cleanup on shutdown
+    cleanup_task.cancel()
+    print("Background TTL cleanup task stopped")
+
 custom_theme_css = Link(rel="stylesheet", href="/css/custom_theme.css", type="text/css")
 favicon_link = Link(rel="icon", href="/favicon.svg", type="image/svg+xml")
 monsterui_headers = Theme.zinc.headers(highlightjs=True, apex_charts=True, radii=ThemeRadii.md)
@@ -47,6 +73,7 @@ app, rt = fast_app(
     live=True,
     pico=False,
     htmx=True,
+    lifespan=lifespan,  # Add lifespan for background tasks
     # before=beforeware,  # Add auth beforeware
     hdrs=(
         # HighlightJS(langs=["python", "html"]),
@@ -66,6 +93,7 @@ app, rt = fast_app(
 )
 
 add_routes(app)
+
 # Import and register entity routes using new application service layer
 
 
@@ -74,7 +102,7 @@ add_routes(app)
 # uow = UnitOfWork(persistence_manager, bus)
 
 # # Register entities with FastHTML adapter
-# entity_classes = [LandingEntity, CounterEntity, DashboardEntity, DataPlaygroundEntity]
+# entity_classes = [Landing, Counter, Dashboard, DataPlaygroundEntity]
 # register_entities(rt, entity_classes, uow)
 
 register_all_entities(rt)

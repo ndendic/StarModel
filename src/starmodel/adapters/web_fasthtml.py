@@ -237,8 +237,8 @@ def register_all_entities(router) -> None:
     Register all entities in the current module.
     """
     try:
-        from starmodel import UnitOfWork, InProcessBus, persistence_manager
-        uow = UnitOfWork(persistence_manager, InProcessBus())
+        from starmodel import UnitOfWork, InProcessBus
+        uow = UnitOfWork(InProcessBus())
         for e in Entity.__subclasses__():
             include_entity(router, e, uow)
     except Exception as e:

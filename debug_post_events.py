@@ -8,18 +8,18 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
 
-from app.pages.counter import CounterEntity
+from app.pages.counter import Counter
 
 def debug_event_info():
     """Debug the event metadata for different methods."""
     
     print("=== DEBUG: Event Metadata Analysis ===\n")
     
-    # Get the CounterEntity class
-    counter_class = CounterEntity
+    # Get the Counter class
+    counter_class = Counter
     
-    print(f"CounterEntity class: {counter_class}")
-    print(f"CounterEntity MRO: {counter_class.__mro__}")
+    print(f"Counter class: {counter_class}")
+    print(f"Counter MRO: {counter_class.__mro__}")
     print()
     
     # Check if _event_info exists
@@ -28,7 +28,7 @@ def debug_event_info():
         print(f"_event_info type: {type(counter_class._event_info)}")
         print()
     else:
-        print("❌ _event_info not found on CounterEntity")
+        print("❌ _event_info not found on Counter")
         print()
     
     # Check individual methods

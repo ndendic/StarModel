@@ -4,13 +4,12 @@ from starmodel import *
 
 rt = APIRouter()
 
-class ProductEntity(Entity):
+class Product(Entity):
     """Record-scoped entity - tied to specific product records."""
     model_config = {
         "arbitrary_types_allowed": True,
-        "starmodel_store": EntityStore.SERVER_MEMORY,
         "starmodel_auto_persist": True,
-        "starmodel_persistence_backend": memory_persistence,
+        "starmodel_persistence_backend": MemoryRepo(),
         "starmodel_ttl": 7200,
     }
     
@@ -45,7 +44,7 @@ def product_detail(req: Request, sess: dict, record_id: int, auth: str = None):
     Demonstrates entity tied to specific database records.
     """
     # Entity automatically injected by FastHTML integration
-    product = ProductEntity.get(req)
+    product = Product.get(req)
 
     # Initialize product data if empty (simulating database load)
     if not product.name:
@@ -86,10 +85,10 @@ def product_detail(req: Request, sess: dict, record_id: int, auth: str = None):
                               cls="border rounded px-3 py-2 mb-3 w-full"),
                         Button("Update Product", type="submit", 
                                cls="bg-green-500 text-white px-6 py-2 rounded mr-2"),
-                        data_on_submit=ProductEntity.update_product()
+                        data_on_submit=Product.update_product()
                     ),
                     Button("Toggle Stock Status", 
-                           data_on_click=ProductEntity.toggle_stock(),
+                           data_on_click=Product.toggle_stock(),
                            cls="bg-blue-500 text-white px-4 py-2 rounded mt-4"),
                     cls="mb-6"
                 ),

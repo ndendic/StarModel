@@ -1,6 +1,7 @@
 from fasthtml.common import *
 from monsterui.all import *
 from starmodel import *
+from starmodel import MemoryRepo
 from pages.templates import app_template
 import random
 from datetime import datetime
@@ -12,7 +13,7 @@ class TaskManager(Entity):
     model_config = {
         "namespace": "TaskManager",  # Custom namespace (default: class name)
         "use_namespace": True,       # Use namespaced signals: $TaskManager.field
-        "store": EntityStore.SERVER_MEMORY,  # Storage backend
+        "persistence_backend": MemoryRepo(),  # Storage backend
         "auto_persist": True,        # Auto-save after each event
         "sync_with_client": True,    # Auto-sync with client signals
     }

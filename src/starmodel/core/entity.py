@@ -7,7 +7,7 @@ from fasthtml.common import *
 from pydantic import BaseModel, Field, ConfigDict
 from pydantic_core import PydanticUndefined
 
-from ..persistence import memory_persistence, EntityStore, EntityPersistenceBackend
+from ..persistence import MemoryRepo, EntityPersistenceBackend
 from .signals import SignalModelMeta
 
 datastar_script = Script(src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.0-beta.11/bundles/datastar.js", type="module")
@@ -16,7 +16,6 @@ class EntityConfig(ConfigDict):
     """Configuration for all entity classes."""
     namespace: str | None
     use_namespace: bool
-    store: EntityStore
     auto_persist: bool
     persistence_backend: EntityPersistenceBackend
     sync_with_client: bool
@@ -26,9 +25,8 @@ class Entity(BaseModel, metaclass=SignalModelMeta):
     """Base class for all entity classes."""
     model_config = EntityConfig(arbitrary_types_allowed=True,
                                 use_namespace=True,
-                                store=EntityStore.SERVER_MEMORY,
                                 auto_persist=True,
-                                persistence_backend=memory_persistence,
+                                persistence_backend=MemoryRepo(),
                                 sync_with_client=True)
 
     id: str = Field(primary_key=True)
@@ -53,10 +51,6 @@ class Entity(BaseModel, metaclass=SignalModelMeta):
         """Get the use_namespace setting for this entity instance."""
         return self.__class__._get_config_value("use_namespace", True)
 
-    @property
-    def store(self):
-        """Get the store for this entity instance."""
-        return self.__class__._get_config_value("store", None)
     
     @property
     def sync_with_client(self):
@@ -71,7 +65,7 @@ class Entity(BaseModel, metaclass=SignalModelMeta):
     @property
     def persistence_backend(self):
         """Get the persistence backend for this entity instance."""
-        return self.__class__._get_config_value("persistence_backend", memory_persistence)
+        return self.__class__._get_config_value("persistence_backend", MemoryRepo())
     
     @property
     def signals(self) -> Dict[str, Any]:
@@ -102,33 +96,16 @@ class Entity(BaseModel, metaclass=SignalModelMeta):
         return Div({"data-on-online__window": self.sync(self.signals)}, id=f"{self.namespace}")
     
     def save(self, ttl: Optional[int] = None) -> bool:
-        """Save entity to configured backend - now uses repository pattern."""
-        if self.store.startswith("client_"):
-            return True  # Datastar handles client persistence        
-        
-        # Use repository pattern via persistence manager
-        try:
-            from ..adapters.persistence import persistence_manager
-            repo = persistence_manager.for_class(self.__class__)
-            # For now, still use the old synchronous method until we make repos fully async
-            return self.persistence_backend.save_entity_sync(self, ttl)
-        except Exception:
-            # Fall back to direct persistence backend if repository fails
-            return self.persistence_backend.save_entity_sync(self, ttl)
+        """Save entity to configured backend."""
+        return self.persistence_backend.save_entity_sync(self, ttl)
         
     
     def delete(self) -> bool:
         """Delete entity from configured backend."""
-        if self.store.startswith("client_"):
-            return True  # Cannot delete client storage from server
-            
         return self.persistence_backend.delete_entity_sync(self.id)
     
     def exists(self) -> bool:
         """Check if entity exists in configured backend."""
-        if self.store.startswith("client_"):
-            return False  # Cannot check client storage from server
-            
         return self.persistence_backend.exists_sync(self.id)
     
     def set_from_request(self, req: Request, **kwargs) -> 'Entity':
@@ -151,21 +128,14 @@ class Entity(BaseModel, metaclass=SignalModelMeta):
     
     @classmethod
     def get(cls, req: Request, **kwargs) -> 'Entity':
-        """Get cached entity or create new - now uses repository pattern."""
-        from ..adapters.persistence import persistence_manager
-        
+        """Get cached entity or create new."""
         entity_id = cls._get_id(req, **kwargs)
         
-        # Try to get from repository via persistence manager
-        try:
-            repo = persistence_manager.for_class(cls)
-            # For now, still use memory_persistence until we implement proper repo.get()
-            cached = memory_persistence._data.get(entity_id)        
-            if cached and isinstance(cached, cls):
-                return cached
-        except Exception:
-            # Fall back to direct creation if repository fails
-            pass
+        # Try to get from persistence backend
+        persistence_backend = cls._get_config_value("persistence_backend", MemoryRepo())
+        cached = persistence_backend.load_entity_sync(entity_id)        
+        if cached and isinstance(cached, cls):
+            return cached
             
         return cls(req, id=entity_id, **kwargs)
     
@@ -188,23 +158,9 @@ class Entity(BaseModel, metaclass=SignalModelMeta):
         return id
     
     def __ft__(self):
-        """Render with appropriate data-persist attributes for client-side stores."""
+        """Render with data-signals attributes."""
         signals = json.dumps(self.signals)
-        
-        if self.store == EntityStore.CLIENT_SESSION:
-            return Div({"data-signals": signals,
-                        "data-on-online__window": self.sync(),
-                        "data-on-load": self.sync(),
-                        "data-persist__session": True},
-                        id=f"{self.namespace}")
-        elif self.store == EntityStore.CLIENT_LOCAL:
-            return Div({"data-signals": signals,
-                        "data-on-online__window": self.sync(),
-                        "data-on-load": self.sync(),
-                        "data-persist": True},
-                        id=f"{self.namespace}")
-        else:
-            return Div({"data-signals": signals}, id=f"{self.namespace}")
+        return Div({"data-signals": signals}, id=f"{self.namespace}")
     
     def __init__(self, req: Request = None, **kwargs):
         super().__init__(**kwargs)

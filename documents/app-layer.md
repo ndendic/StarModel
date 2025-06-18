@@ -97,7 +97,7 @@ Later you can register more subscribers (WebSocket, task queue).
 
 ## 4. Repo split (move persistence glue out of `state.py`)
 
-* `state.py` still defines `auto_persist`, but **remove** direct usage of `memory_persistence` inside `State.get()`—delegate to `repo = PersistenceManager.for_class(cls)`.
+* `state.py` still defines `auto_persist`, but **remove** direct usage of `MemoryRepo()` inside `State.get()`—delegate to `repo = PersistenceManager.for_class(cls)`.
 * Create `starmodel/adapters/persistence/memory.py` (you already have) **unchanged**.
 * Add a micro-“manager” in `adapters/persistence/__init__.py` that picks the right repo based on `state_cls.model_config["store"]`.
 

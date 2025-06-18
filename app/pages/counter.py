@@ -6,16 +6,15 @@ from pages.templates import app_template
 
 
 import asyncio
-from starmodel import Entity, event, EntityStore, memory_persistence
+from starmodel import Entity, event, MemoryRepo
 
-class CounterEntity(Entity): 
+class Counter(Entity): 
     """Enhanced counter with persistence and real-time sync."""
     model_config = {
         "arbitrary_types_allowed": True,
-        "starmodel_store": EntityStore.SERVER_MEMORY,
-        "starmodel_auto_persist": True,
-        "starmodel_persistence_backend": memory_persistence,
-        "starmodel_ttl": 10,
+        "persistence_backend": MemoryRepo(),
+        "auto_persist": True,
+        "ttl": 10,
     }
     
     count: int = 0
@@ -64,7 +63,7 @@ def global_counter(req: Request):
     """
     Global counter demo with persistence and real-time synchronization.
     """
-    counter = CounterEntity.get(req)
+    counter = Counter.get(req)
     username = req.session.get("user") or "Anonymous"
     
     return Main(
@@ -79,12 +78,12 @@ def global_counter(req: Request):
             Div(
                 Div(
                     Div(
-                        Span(data_text=CounterEntity.count_signal, cls="text-7xl font-bold text-primary"),
+                        Span(data_text=Counter.count_signal, cls="text-7xl font-bold text-primary"),
                         cls="text-center mb-4"
                     ),
-                    Div("Total updates: ", Span(data_text=CounterEntity.update_count_signal), cls="font-mono text-secondary"),
+                    Div("Total updates: ", Span(data_text=Counter.update_count_signal), cls="font-mono text-secondary"),
                     Div(f"Current user: {username}", cls="font-mono text-secondary"),
-                    Div("Last updated by: ", Span(data_text=CounterEntity.last_updated_by_signal), cls="font-mono text-secondary mb-2"),
+                    Div("Last updated by: ", Span(data_text=Counter.last_updated_by_signal), cls="font-mono text-secondary mb-2"),
                     Div(id="message", cls="font-mono text-secondary mb-2"),
                     cls="p-6 border border-primary rounded mb-6 text-center"
                 ),
@@ -95,25 +94,25 @@ def global_counter(req: Request):
             Div(
                 Div(
                     Button("-100", 
-                            data_on_click=CounterEntity.decrement(100, username),
+                            data_on_click=Counter.decrement(100, username),
                             cls="bg-red-700 text-white px-4 py-2 rounded mr-2"),
                     Button("-10", 
-                            data_on_click=CounterEntity.decrement(10, username),
+                            data_on_click=Counter.decrement(10, username),
                             cls="bg-red-600 text-white px-4 py-2 rounded mr-2"),
                     Button("-1", 
-                            data_on_click=CounterEntity.decrement(1, username),
+                            data_on_click=Counter.decrement(1, username),
                             cls="bg-red-400 text-white px-4 py-2 rounded mr-2"),
                     Button("Reset", 
-                            data_on_click=CounterEntity.reset(username),
+                            data_on_click=Counter.reset(username),
                             cls="bg-gray-500 text-white px-4 py-2 rounded mr-2"),
                     Button("+1", 
-                            data_on_click=CounterEntity.increment(1, username),
+                            data_on_click=Counter.increment(1, username),
                             cls="bg-green-400 text-white px-4 py-2 rounded mr-2"),
                     Button("+10", 
-                            data_on_click=CounterEntity.increment(10, username),
+                            data_on_click=Counter.increment(10, username),
                             cls="bg-green-600 text-white px-4 py-2 rounded mr-2"),
                     Button("+100", 
-                            data_on_click=CounterEntity.increment(100, username),
+                            data_on_click=Counter.increment(100, username),
                             cls="bg-green-700 text-white px-4 py-2 rounded"),
                     cls="text-center mb-6"
                 ),
@@ -127,7 +126,7 @@ def global_counter(req: Request):
                             cls="border rounded px-3 py-2 mr-2 w-24"),
                     Button("+", type="submit", 
                             cls="bg-blue-500 text-white px-4 py-2 rounded mr-2"),
-                    data_on_submit=CounterEntity.increment(user=username),
+                    data_on_submit=Counter.increment(user=username),
                     cls="mb-6"
                 ),
                 cls="text-center mb-6"

@@ -5,13 +5,12 @@ import json
 
 rt = APIRouter()
 
-class UserProfileEntity(Entity):
+class UserProfile(Entity):
     """User-scoped entity - persists across sessions for authenticated users."""
     model_config = {
         "arbitrary_types_allowed": True,
-        "starmodel_store": EntityStore.SERVER_MEMORY,
         "starmodel_auto_persist": True,
-        "starmodel_persistence_backend": memory_persistence,
+        "starmodel_persistence_backend": MemoryRepo(),
         "starmodel_ttl": 3600,
     }
     
@@ -115,7 +114,7 @@ def profile(req: Request, sess: dict, auth: str = None):
     Uses simple .get() method for entity resolution.
     """
     # Simple, explicit entity resolution
-    profile = UserProfileEntity.get(req)
+    profile = UserProfile.get(req)
     
     return Titled("User Profile",
         Main(
@@ -146,9 +145,9 @@ def profile(req: Request, sess: dict, auth: str = None):
                               data_bind="$name", cls="border rounded px-3 py-2 mb-3 w-full"),
                         Input(value=profile.email, name="email", placeholder="Email Address", 
                               data_bind="$email", cls="border rounded px-3 py-2 mb-3 w-full"),
-                        Button("Update Profile", type="submit", data_on_click=UserProfileEntity.update_profile(),
+                        Button("Update Profile", type="submit", data_on_click=UserProfile.update_profile(),
                                cls="bg-blue-500 text-white px-6 py-2 rounded"),
-                        data_on_submit=UserProfileEntity.update_profile()
+                        data_on_submit=UserProfile.update_profile()
                     ),
                     cls="mb-6"
                 ),

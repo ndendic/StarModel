@@ -5,13 +5,12 @@ import json
 
 rt = APIRouter()
 
-class GlobalSettingsEntity(Entity):
+class GlobalSettings(Entity):
     """Global entity - shared across all users (admin only)."""
     model_config = {
         "arbitrary_types_allowed": True,
-        "starmodel_store": EntityStore.SERVER_MEMORY,
         "starmodel_auto_persist": True,
-        "starmodel_persistence_backend": memory_persistence,
+        "starmodel_persistence_backend": MemoryRepo(),
         "starmodel_ttl": None,
     }
     
@@ -47,7 +46,7 @@ def admin_panel(req: Request):
     Uses simple .get() method for entity resolution.
     """
     # Simple, explicit entity resolution
-    settings = GlobalSettingsEntity.get(req)
+    settings = GlobalSettings.get(req)
     return Titled("Admin Panel",
         Main(
             Div(
@@ -60,9 +59,9 @@ def admin_panel(req: Request):
                 Div(
                     H2("System Status", cls="text-xl font-bold mb-4"),
                     Div(
-                        Div("Theme: ", Span(data_text=GlobalSettingsEntity.theme_signal), cls="mb-2"),
-                        Div("Maintenance Mode: ", Span(data_text=GlobalSettingsEntity.maintenance_mode_signal), cls="mb-2"),
-                        Div("Announcement: ", Span(data_text=GlobalSettingsEntity.announcement_signal), cls="mb-2"),
+                        Div("Theme: ", Span(data_text=GlobalSettings.theme_signal), cls="mb-2"),
+                        Div("Maintenance Mode: ", Span(data_text=GlobalSettings.maintenance_mode_signal), cls="mb-2"),
+                        Div("Announcement: ", Span(data_text=GlobalSettings.announcement_signal), cls="mb-2"),
                         cls="bg-secondary-foreground p-4 rounded mb-6"
                     ),
                     cls="mb-6"
@@ -74,27 +73,27 @@ def admin_panel(req: Request):
                     
                     Div(
                         Button("Toggle Maintenance Mode", 
-                               data_on_click=GlobalSettingsEntity.toggle_maintenance(),
+                               data_on_click=GlobalSettings.toggle_maintenance(),
                                cls=ButtonT.primary+"px-4 py-2 rounded mr-2 mb-2"),
                         cls="mb-4"
                     ),
                     
                     Div(
                         Input(placeholder="System announcement...", name="message",
-                              data_bind=GlobalSettingsEntity.announcement_signal,
+                              data_bind=GlobalSettings.announcement_signal,
                               cls="border rounded px-3 py-2 mr-2 flex-1"),
                         Button("Set Announcement", 
-                               data_on_click=GlobalSettingsEntity.set_announcement(),
+                               data_on_click=GlobalSettings.set_announcement(),
                                cls=ButtonT.secondary+"px-4 py-2 rounded"),
                         cls="flex mb-4"
                     ),
                     
                     Div(
                         Button("Light Theme", 
-                               data_on_click=GlobalSettingsEntity.change_theme("light"),
+                               data_on_click=GlobalSettings.change_theme("light"),
                                cls="bg-gray-200 text-gray-800 px-4 py-2 rounded mr-2"),
                         Button("Dark Theme", 
-                               data_on_click=GlobalSettingsEntity.change_theme("dark"),
+                               data_on_click=GlobalSettings.change_theme("dark"),
                                cls="bg-gray-800 text-white px-4 py-2 rounded"),
                         cls="mb-6"
                     ),
@@ -178,7 +177,7 @@ def system_status(req: Request):
                                 eventSource.close();
                             }
                             
-                            eventSource = new EventSource('/starmodel/sse?entities=CounterEntity,ChatEntity');
+                            eventSource = new EventSource('/starmodel/sse?entities=Counter,Chat');
                             document.getElementById('sse-status').innerHTML = 'Connecting to SSE...';
                             
                             eventSource.onopen = function() {

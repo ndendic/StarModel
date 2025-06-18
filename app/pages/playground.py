@@ -5,7 +5,7 @@ from pages.templates import page_template
 
 rt = APIRouter()
 
-class LandingEntity(Entity):
+class Playground(Entity):
     """Interactive landing page showcasing StarModel's reactive magic."""
     live_counter: int = 0
     active_connections: int = 1
@@ -34,7 +34,7 @@ class LandingEntity(Entity):
 @page_template(title="⭐ StarModel - Reactive Entity Management for Python")
 def index(req: Request):
     """Revolutionary landing page showcasing StarModel's reactive magic."""
-    entity = LandingEntity.get(req)
+    entity = Playground.get(req)
     
     return Main(
         entity,

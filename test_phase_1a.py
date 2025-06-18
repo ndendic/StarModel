@@ -74,11 +74,11 @@ def test_repository_pattern():
     
     try:
         from starmodel.adapters.persistence import persistence_manager, RepositoryInterface, MemoryRepository
-        from starmodel import Entity, EntityStore
+        from starmodel import Entity, MemoryRepo
         
         class TestEntity(Entity):
             value: str = "test"
-            model_config = {"store": EntityStore.SERVER_MEMORY}
+            model_config = {"persistence_backend": MemoryRepo()}
         
         # Test repository selection
         repo = persistence_manager.for_class(TestEntity)
@@ -209,17 +209,17 @@ def test_demo_app_compatibility():
     try:
         sys.path.insert(0, '.')
         sys.path.insert(0, 'app')
-        from pages.counter import CounterEntity
+        from pages.counter import Counter
         
         # Test entity still works
         class MockReq:
             query_params = {}
             cookies = {'session_': 'test'}
         
-        counter = CounterEntity.get(MockReq())
+        counter = Counter.get(MockReq())
         
         # Test @event metadata
-        if hasattr(CounterEntity.increment, '_event_info'):
+        if hasattr(Counter.increment, '_event_info'):
             print("  ✅ Demo app entities still working")
             print("  ✅ @event decorator compatibility maintained")
             print("  ✅ Entity creation compatibility maintained")

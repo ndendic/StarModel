@@ -4,13 +4,12 @@ from starmodel import *
 
 rt = APIRouter()
 
-class ChatEntity(Entity):
+class Chat(Entity):
     """Global chat entity for real-time collaboration demo."""
     model_config = {
         "arbitrary_types_allowed": True,
-        "starmodel_store": EntityStore.SERVER_MEMORY,
         "starmodel_auto_persist": True,
-        "starmodel_persistence_backend": memory_persistence,
+        "starmodel_persistence_backend": MemoryRepo(),
         "starmodel_ttl": None,
     }
     
@@ -67,7 +66,7 @@ def realtime_chat(req: Request, sess: dict, auth: str = None):
     """
     Real-time chat demo showcasing global entity and SSE broadcasting.
     """
-    chat = ChatEntity.get(req)
+    chat = Chat.get(req)
     username = auth or sess.get('auth', 'Anonymous')
     
     return Titled("Real-time Chat",
@@ -124,7 +123,7 @@ def realtime_chat(req: Request, sess: dict, auth: str = None):
                               cls="border rounded px-3 py-2 mr-2 flex-1"),
                         Button("Send", type="submit", 
                                cls="bg-blue-500 text-white px-6 py-2 rounded"),
-                        data_on_submit=ChatEntity.send_message(),
+                        data_on_submit=Chat.send_message(),
                         cls="flex mb-4"
                     ),
                     cls="mb-6"
@@ -133,10 +132,10 @@ def realtime_chat(req: Request, sess: dict, auth: str = None):
                 # Chat actions
                 Div(
                     Button("Join Chat", 
-                           data_on_click=ChatEntity.join_chat(username),
+                           data_on_click=Chat.join_chat(username),
                            cls="bg-green-500 text-white px-4 py-2 rounded mr-2"),
                     Button("Leave Chat", 
-                           data_on_click=ChatEntity.leave_chat(username),
+                           data_on_click=Chat.leave_chat(username),
                            cls="bg-red-500 text-white px-4 py-2 rounded"),
                     cls="mb-6"
                 ),

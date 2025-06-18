@@ -90,7 +90,7 @@ src/starmodel/
 # ✅ Updated imports in __init__.py to maintain backward compatibility
 from starmodel.core.entity import State  # Keep State name for now
 from starmodel.core.events import event
-from starmodel.persistence.memory import memory_persistence
+from starmodel.persistence.memory import MemoryRepo
 ```
 
 #### **✅ Week 2: Clean Architecture Validation (COMPLETED)**
@@ -152,7 +152,7 @@ src/starmodel/
 │   └── persistence/       # Repository adapters (existing)
 ```
 
-**Step 1a.2: Implement Dispatcher Pattern**
+**✅ Step 1a.2: Implement Dispatcher Pattern**
 ```python
 # src/starmodel/app/dispatcher.py
 def call_event(state_cls, event_name, request) -> tuple[Any, dict]:
@@ -171,7 +171,7 @@ def call_event(state_cls, event_name, request) -> tuple[Any, dict]:
     return new_state, cmd_record
 ```
 
-**Step 1a.3: Implement Unit-of-Work Pattern**
+**✅ Step 1a.3: Implement Unit-of-Work Pattern**
 ```python
 # src/starmodel/app/uow.py
 class UnitOfWork:
@@ -193,7 +193,7 @@ class UnitOfWork:
         self._events.clear()
 ```
 
-#### **Week 4: Refactor Existing Code to Use App Layer**
+#### **✅ Week 4: Refactor Existing Code to Use App Layer**
 
 **Step 1a.4: Extract Route Registration from @event**
 ```python
@@ -214,7 +214,7 @@ def event(fn=None, *, method="GET", selector=None):
     return decorator(fn) if fn else decorator
 ```
 
-**Step 1a.5: Implement Repository Pattern**
+**✅ Step 1a.5: Implement Repository Pattern**
 ```python
 # src/starmodel/adapters/persistence/__init__.py
 class PersistenceManager:
@@ -231,7 +231,7 @@ class PersistenceManager:
         return self._backends[store]
 ```
 
-**Step 1a.6: Create FastHTML Adapter**
+**✅ Step 1a.6: Create FastHTML Adapter**
 ```python
 # src/starmodel/adapters/web_fasthtml.py
 def include_entity(app, entity_class, dispatcher, uow):
@@ -252,7 +252,7 @@ def include_entity(app, entity_class, dispatcher, uow):
 
 #### **Week 5: State → Entity Renaming**
 
-**Step 1b.1: Rename State → Entity (Zero Functional Changes)**
+**✅ Step 1b.1: Rename State → Entity (Zero Functional Changes)**
 ```python
 # src/starmodel/core/entity.py: class State → class Entity
 class Entity(BaseModel, metaclass=SignalModelMeta):
