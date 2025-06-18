@@ -9,7 +9,8 @@ to provide automatic entity management with scoping and real-time updates.
 from .core import Entity, event, datastar_script, DatastarPayload, rt as entities_rt
 from .persistence import (
     EntityPersistenceBackend, 
-    MemoryRepo, get_memory_persistence
+    MemoryRepo, get_memory_persistence,
+    start_all_cleanup, stop_all_cleanup, configure_all_cleanup
 )
 
 # Import new application service layer components
@@ -37,4 +38,7 @@ __all__ = [
     'EntityPersistenceBackend',
     'MemoryRepo',
     'get_memory_persistence',
+    'start_all_cleanup',
+    'stop_all_cleanup', 
+    'configure_all_cleanup',
 ]

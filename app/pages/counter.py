@@ -68,7 +68,7 @@ def global_counter(req: Request):
     
     return Main(
         counter,
-        # counter.PollDiv(),
+        # counter.Poll(),
         Div(
             H1("🔢 Global Counter Demo", cls="text-3xl font-bold mb-6"),
             P("This counter is shared globally across all users and persisted to database. Open multiple tabs to see the counter update in real-time.", 

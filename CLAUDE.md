@@ -103,7 +103,7 @@ StarModel is an **entity-centric Python web framework** that follows the philoso
 | UI Kit      | **MonsterUI** (Tailwind components)     | Other FastHTML kit or React via REST adapter |
 | ORM / Table | **SQLModel + BaseTable** (FastSQLModel) | Tortoise / PonyORM / custom SQLAlchemy       |
 | DB Engine   | **SQLite**                              | Postgres, MySQL via URL or alt repo          |
-| Cache       | **Server Memory**                       | Redis via `RedisStatePersistence`            |
+| Cache       | **Server Memory** (auto-cleanup)       | Redis via `RedisStatePersistence`            |
 | Realtime    | **Datastar (SSE)**                      | WebSocket plugin (Phase 4)                   |
 | Auth        | **FastHTML‑Auth simple**                | OAuth, AzureAD plugin                        |
 | CLI         | `starmodel`: `init`, `run`              | New commands via entry‑point plugins         |
@@ -295,9 +295,15 @@ StarModel is an **entity-centric Python web framework** that implements the phil
 ## Entity Development API
 
 ```python
-# Basic entity definition with automatic signal generation
+# Basic entity definition with automatic signal generation and cleanup
 class Counter(Entity):
     count: int = 0
+    
+    # MemoryRepo() automatically provides:
+    # - Singleton pattern (shared across all instances)
+    # - Auto-cleanup every 5 minutes (configurable)
+    # - TTL support for expiring entities
+    model_config = {"persistence_backend": MemoryRepo()}
     
     @event
     def increment(self, amount: int = 1):
@@ -309,6 +315,35 @@ Input(data_bind=Counter.count_signal)
 
 # Signal access for reactive binding  
 Span(data_text=Counter.count_signal)  # → "$count" or "$Counter.count"
+```
+
+## **Automatic Cleanup Configuration**
+
+StarModel provides automatic TTL cleanup without requiring manual setup in `main.py`:
+
+```python
+# Default: Auto-cleanup every 5 minutes (no configuration needed)
+class DefaultEntity(Entity):
+    data: dict = {}
+
+# Custom cleanup interval per backend
+from starmodel.persistence import MemoryRepo
+repo = MemoryRepo()
+repo.configure_cleanup(enabled=True, interval=120)  # 2 minutes
+
+# Global cleanup configuration for all backends
+from starmodel import configure_all_cleanup
+configure_all_cleanup(enabled=True, interval=300)  # 5 minutes
+
+# Disable cleanup completely
+configure_all_cleanup(enabled=False)
+
+# Custom backend with cleanup support
+class CustomRepo(EntityPersistenceBackend):
+    def __init__(self):
+        super().__init__()
+        self.configure_cleanup(enabled=True, interval=600)  # 10 minutes
+        self.start_cleanup()
 ```
 
 ## **Multi-Modal Persistence Examples**

@@ -9,6 +9,7 @@ from pydantic_core import PydanticUndefined
 
 from ..persistence import MemoryRepo, EntityPersistenceBackend
 from .signals import SignalModelMeta
+from .events import event
 
 datastar_script = Script(src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.0-beta.11/bundles/datastar.js", type="module")
 
@@ -74,26 +75,24 @@ class Entity(BaseModel, metaclass=SignalModelMeta):
         else:
             return self.model_dump()
 
-    # TODO: event decorators are removed 
+    @event
     async def live(self, heartbeat: float = 15):
         while True:
             yield self.signals
             await asyncio.sleep(heartbeat)
 
-    # TODO: event decorators are removed 
+    @event
     async def poll(self):
         pass
 
-    # TODO: event decorators are removed
+    @event
     async def sync(self, datastar):    
         self.set_from_request(datastar)
         return self.signals
     
-    def PollDiv(self, heartbeat: float = 0):
-        return Div({f"data-on-interval__duration.{heartbeat}s.leading": self.poll()}, id=f"{self.namespace}")
+    def Poll(self, heartbeat: float = 0):
+        return Div({"data-on-online__window": self.sync(self.signals), f"data-on-interval__duration.{heartbeat}s.leading": self.poll()}, id=f"{self.namespace}")
 
-    def PullSyncDiv(self):
-        return Div({"data-on-online__window": self.sync(self.signals)}, id=f"{self.namespace}")
     
     def save(self, ttl: Optional[int] = None) -> bool:
         """Save entity to configured backend."""

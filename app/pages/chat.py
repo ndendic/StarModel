@@ -78,7 +78,7 @@ def realtime_chat(req: Request, sess: dict, auth: str = None):
                 
                 # Chat entity display
                 chat,
-                chat.PollDiv(),
+                chat.Poll(),
                 
                 # Chat info
                 Div(

@@ -1,9 +1,8 @@
-import asyncio
 from contextlib import asynccontextmanager
 from fasthtml.common import *
 from monsterui.all import *
 from starmodel import *
-from starmodel.persistence import MemoryRepo
+from starmodel.persistence import start_all_cleanup, stop_all_cleanup
 from route_collector import add_routes
 
 # from starmodel import UnitOfWork, InProcessBus, persistence_manager, register_entities, register_all_entities
@@ -42,27 +41,16 @@ beforeware = Beforeware(
     ],
 )
 
-async def periodic_cleanup():
-    """Background task to clean up expired entities every 5 minutes."""
-    while True:
-        try:
-            await asyncio.sleep(300)  # 5 minutes
-            cleaned = MemoryRepo().cleanup_expired_sync()
-            if cleaned > 0:
-                print(f"Cleaned up {cleaned} expired entities")
-        except Exception as e:
-            print(f"Error during cleanup: {e}")
-
 @asynccontextmanager
 async def lifespan(app):
-    """Application lifespan manager for background tasks."""
-    # Start cleanup task
-    cleanup_task = asyncio.create_task(periodic_cleanup())
-    print("Background TTL cleanup task started")
+    """Application lifespan manager for persistence backends."""
+    # Start all registered persistence backend cleanup tasks
+    start_all_cleanup()
+    print("StarModel persistence backends initialized with automatic cleanup")
     yield
-    # Cleanup on shutdown
-    cleanup_task.cancel()
-    print("Background TTL cleanup task stopped")
+    # Stop all cleanup tasks on shutdown
+    stop_all_cleanup()
+    print("StarModel persistence cleanup tasks stopped")
 
 custom_theme_css = Link(rel="stylesheet", href="/css/custom_theme.css", type="text/css")
 favicon_link = Link(rel="icon", href="/favicon.svg", type="image/svg+xml")

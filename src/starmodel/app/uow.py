@@ -51,22 +51,15 @@ class UnitOfWork:
             command_record: Command record from dispatcher
         """
         try:
-            # Save entity to appropriate repository
             if entity.persistence_backend:
-                # await entity.persistence_backend.save_entity_sync(entity)            
                 entity.persistence_backend.save_entity_sync(entity)            
             
-            # Collect the command as a domain event
             self.collect_event(command_record)
             
             # TODO: Add database transaction commit here for SQL repositories
             # if hasattr(repo, 'commit'):
             #     await repo.commit()
-            
-            # Mark as committed
             self._committed = True
-            
-            # Publish all collected domain events
             await self._publish_events()
             
         except Exception as e:

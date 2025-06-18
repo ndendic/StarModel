@@ -33,9 +33,20 @@ class MemoryRepo(EntityPersistenceBackend):
     def __init__(self):
         """Initialize memory persistence backend (only once)."""
         if not self._initialized:
+            # Initialize data storage
             self._data: Dict[str, Dict[str, Any]] = {}
             self._expiry: Dict[str, float] = {}
             MemoryRepo._initialized = True
+            
+            # Initialize parent class for cleanup functionality
+            super().__init__()
+            
+            # Register this backend for global cleanup management
+            from . import register_backend
+            register_backend(self)
+            
+            # Start automatic cleanup by default
+            self.start_cleanup()
     
     
     def save_entity_sync(self, entity, ttl: Optional[int] = None) -> bool:
