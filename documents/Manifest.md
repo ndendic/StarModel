@@ -140,7 +140,7 @@ The framework follows **clean architecture principles** with clear layer separat
 ### **Infrastructure Adapters**
 - **`starmodel.adapters`** – Infrastructure adapters implementing ports and adapters pattern:
   - **`persistence/`** – Multi-modal persistence adapters (memory, Redis, FastSQLModel, client-side)
-  - **`web_fasthtml.py`** – FastHTML integration and auto-route generation  
+  - **`fasthtml.py`** – FastHTML integration and auto-route generation  
   - **`ui_monster.py`** – MonsterUI integration and automatic UI generation
   - **`sse_datastar.py`** – Datastar integration for real-time updates
 

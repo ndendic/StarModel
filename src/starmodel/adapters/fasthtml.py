@@ -5,10 +5,8 @@ Implements clean integration between StarModel entities and FastHTML routing.
 Replaces direct route registration in @event decorators with clean adapter pattern.
 """
 
-from typing import Any, Type, Callable
+from typing import Type, Callable
 from fasthtml.common import Request, JSONResponse, StreamingResponse, FT, to_xml
-import inspect
-import asyncio
 
 # Import Datastar SSE functionality
 try:

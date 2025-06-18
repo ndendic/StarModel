@@ -148,7 +148,7 @@ src/starmodel/
 │   └── bus.py             # EventBus for SSE/WebSocket coordination
 ├── adapters/              # INFRASTRUCTURE ADAPTERS
 │   ├── __init__.py
-│   ├── web_fasthtml.py    # FastHTML router adapter (new)
+│   ├── fasthtml.py    # FastHTML router adapter (new)
 │   └── persistence/       # Repository adapters (existing)
 ```
 
@@ -233,7 +233,7 @@ class PersistenceManager:
 
 **✅ Step 1a.6: Create FastHTML Adapter**
 ```python
-# src/starmodel/adapters/web_fasthtml.py
+# src/starmodel/adapters/fasthtml.py
 def include_entity(app, entity_class, dispatcher, uow):
     """Register entity events as FastHTML routes via dispatcher"""
     for name, info in entity_class.events.items():

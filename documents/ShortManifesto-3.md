@@ -177,7 +177,7 @@ starmodel/
 │   ├─ uow.py             # Unit‑of‑Work / transaction hub
 │   └─ bus.py             # EventBus interface + default impl
 ├─ adapters/
-│   ├─ web_fasthtml.py    # Auto‑router for FastHTML
+│   ├─ fasthtml.py    # Auto‑router for FastHTML
 │   ├─ ui_monster.py      # MonsterUI rendering helpers
 │   └─ persistence/
 │        ├─ memory.py

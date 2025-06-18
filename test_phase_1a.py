@@ -102,7 +102,7 @@ def test_fasthtml_adapter():
     print("\n🧪 Test 4: FastHTML Adapter")
     
     try:
-        from starmodel.adapters.web_fasthtml import include_entity, register_entities
+        from starmodel.adapters.fasthtml import include_entity, register_entities
         from starmodel import Entity, event, UnitOfWork, InProcessBus, persistence_manager
         from fasthtml.core import APIRouter
         
@@ -189,7 +189,7 @@ def test_clean_architecture():
         from starmodel.core import Entity, event  # Domain layer
         from starmodel.app import call_event, UnitOfWork, InProcessBus  # Application layer
         from starmodel.adapters.persistence import persistence_manager  # Infrastructure layer
-        from starmodel.adapters.web_fasthtml import include_entity  # Infrastructure layer
+        from starmodel.adapters.fasthtml import include_entity  # Infrastructure layer
         
         print("  ✅ Core domain layer accessible")
         print("  ✅ Application service layer accessible")

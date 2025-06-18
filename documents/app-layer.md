@@ -106,7 +106,7 @@ Later you can register more subscribers (WebSocket, task queue).
 ## 5. FastHTML router adapter update
 
 *Stop registering routes inside `@event`.*
-Create `starmodel/adapters/web_fasthtml.py`:
+Create `starmodel/adapters/fasthtml.py`:
 
 ```python
 def include_state(router, state_cls):
@@ -132,7 +132,7 @@ def include_state(router, state_cls):
    * `app/dispatcher.py`
    * `app/uow.py`
    * `app/bus.py`
-   * `adapters/web_fasthtml.py`
+   * `adapters/fasthtml.py`
 4. **bootstrap.py** – wire:
 
    ```python

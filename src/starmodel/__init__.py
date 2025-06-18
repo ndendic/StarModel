@@ -15,7 +15,7 @@ from .persistence import (
 
 # Import new application service layer components
 from .app import call_event, UnitOfWork, InProcessBus
-from .adapters.web_fasthtml import include_entity, register_entities, register_all_entities
+from .adapters.fasthtml import include_entity, register_entities, register_all_entities
 
 __all__ = [
     # Core entity components
