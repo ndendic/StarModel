@@ -28,9 +28,8 @@ class Counter(Entity):
         for i in range(amount):
             self.count += 1
             self.last_updated_by = user
-            await asyncio.sleep(i/1000)
-            from fasthtml.common import Div
             yield Div(f"Counter incremented by {i+1} by {user}",id="message", cls="font-mono text-sm text-green-600")
+            await asyncio.sleep(1/(i+1))
     
     @event(method="POST")
     async def decrement(self, amount: int = 1, user: str = "Anonymous"):
@@ -38,9 +37,8 @@ class Counter(Entity):
         for i in range(amount):
             self.count -= 1
             self.last_updated_by = user
-            await asyncio.sleep(i/1000)
-            from fasthtml.common import Div
             yield Div(f"Counter decremented by {i+1} by {user}",id="message", cls="font-mono text-sm text-red-600")
+            await asyncio.sleep(1/(i+1))
         
     
     @event(method="POST")
@@ -50,9 +48,8 @@ class Counter(Entity):
             if self.count > 0: self.count -= 1 
             else: self.count += 1
             self.last_updated_by = user
-            await asyncio.sleep(i/1000)
-            from fasthtml.common import Div
             yield Div(f"Counter reset by {user}",id="message", cls="font-mono text-sm text-blue-600")
+            await asyncio.sleep(1/(i+1))
 
 rt = APIRouter()
 

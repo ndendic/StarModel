@@ -2,13 +2,15 @@ import inspect
 import asyncio
 import json
 from typing import Any, Dict, Optional
+from datetime import datetime
 
 from fasthtml.common import *
 from pydantic import BaseModel, Field, ConfigDict
 from pydantic_core import PydanticUndefined
-
+from FastSQLModel.db import BaseTable
+from sqlmodel import SQLModel
 from ..persistence import MemoryRepo, EntityPersistenceBackend
-from .signals import SignalModelMeta
+from .signals import SignalDescriptor, EventMethodDescriptor
 from .events import event
 
 datastar_script = Script(src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.0-beta.11/bundles/datastar.js", type="module")
@@ -22,13 +24,14 @@ class EntityConfig(ConfigDict):
     sync_with_client: bool
     ttl: Optional[int]
 
-class Entity(BaseModel, metaclass=SignalModelMeta):
+class Entity(SQLModel):
     """Base class for all entity classes."""
     model_config = EntityConfig(arbitrary_types_allowed=True,
                                 use_namespace=True,
                                 auto_persist=True,
                                 persistence_backend=MemoryRepo(),
-                                sync_with_client=True)
+                                sync_with_client=True,
+                                json_encoders={datetime: lambda dt: dt.isoformat()})
 
     id: str = Field(primary_key=True)
 
@@ -173,6 +176,24 @@ class Entity(BaseModel, metaclass=SignalModelMeta):
         if self.auto_persist:
             self.save()
 
+    @classmethod
+    def __pydantic_init_subclass__(cls, **kwargs: Any) -> None:
+        super().__pydantic_init_subclass__(**kwargs)
+        
+        # Create signal descriptors for all model fields
+        for field_name in cls.model_fields:
+            setattr(cls, f"{field_name}_signal", SignalDescriptor(field_name))
+        for field_name in cls.model_computed_fields:
+            setattr(cls, f"{field_name}_signal", SignalDescriptor(field_name))
+        
+        # Create URL generator methods for @event decorated methods
+        for attr_name in dir(cls):
+            attr = getattr(cls, attr_name)
+            if hasattr(attr, '_event_info'):
+                # Create URL generator method that overrides the original method on the class
+                url_generator = EventMethodDescriptor(attr_name, cls.__name__, attr)
+                setattr(cls, attr_name, url_generator)
+    
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         cls._original_methods = {}

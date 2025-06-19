@@ -5,14 +5,7 @@ from starmodel import *
 from starmodel.persistence import start_all_cleanup, stop_all_cleanup
 from route_collector import add_routes
 
-# from starmodel import UnitOfWork, InProcessBus, persistence_manager, register_entities, register_all_entities
 from starmodel import  register_all_entities
-# Import all entities
-# from entities.landing import Landing
-# from pages.counter import Counter  
-# from pages.dashboard import Dashboard
-# from pages.data_playground import DataPlaygroundEntity
-
 
 def auth_beforeware(req, sess):
     """
