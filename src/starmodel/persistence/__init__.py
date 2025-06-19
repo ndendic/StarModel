@@ -9,6 +9,7 @@ from typing import List
 from .base import EntityPersistenceBackend
 from .memory import MemoryRepo, get_memory_persistence
 from .datastar import DatastarRepo
+from .sql import SQLModelBackend
 
 # Global registry of active persistence backends for cleanup management
 _active_backends: List[EntityPersistenceBackend] = []
