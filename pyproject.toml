@@ -1,7 +1,7 @@
 [project]
 name = "starmodel"
-version = "0.1.0"
-description = "StarModel - Reactive State Management for FastHTML"
+version = "0.2.0"
+description = "Entity-centric Python web framework for real-time collaborative applications"
 readme = "README.md"
 authors = [
     { name = "ndendic", email = "ndendic@gmail.com" }
@@ -17,11 +17,40 @@ dependencies = [
 ]
 
 [project.scripts]
-star = "starmodel.cli.cli:app"
+starmodel = "tools.cli.starmodel_cli:app"
+
+# Entry points for example applications
+[project.entry-points."starmodel.examples"]
+counter = "examples.counter_app.main:app"
+dashboard = "examples.dashboard_app.main:app"
+collaboration = "examples.collaboration_app.main:app"
+full_demo = "examples.full_demo.main:app"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+# Package discovery for screaming architecture
+[tool.setuptools.packages.find]
+where = ["framework"]
+include = ["starmodel*"]
+
+[tool.setuptools.package-dir]
+starmodel = "framework"
+
+# Development tools configuration
+[tool.pytest.ini_options]
+testpaths = ["tests", "framework/*/tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+[tool.mypy]
+python_version = "3.12"
+packages = ["framework", "examples", "tools"]
+strict = true
+warn_return_any = true
+warn_unused_configs = true
 
 [dependency-groups]
 dev = [

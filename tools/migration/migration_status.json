@@ -1,0 +1,173 @@
+{
+  "last_updated": "2025-06-20T19:08:46.807174",
+  "mappings": [
+    {
+      "old_path": "src/starmodel/core/entity.py",
+      "new_path": "framework/entities/lifecycle/entity.py",
+      "migrated": true,
+      "tested": false,
+      "migration_date": "2025-06-20T18:55:41.365306",
+      "notes": "Core Entity class - heart of StarModel | Migrated core Entity class to screaming architecture location with improvements"
+    },
+    {
+      "old_path": "src/starmodel/core/events.py",
+      "new_path": "framework/events/commands/event.py",
+      "migrated": true,
+      "tested": false,
+      "migration_date": "2025-06-20T18:56:45.361218",
+      "notes": "@event decorator and command definitions | Migrated event system to screaming architecture with enhanced metadata and clean separation"
+    },
+    {
+      "old_path": "src/starmodel/core/signals.py",
+      "new_path": "framework/reactivity/signals/signal_system.py",
+      "migrated": true,
+      "tested": false,
+      "migration_date": "2025-06-20T18:57:53.689415",
+      "notes": "Reactive signals for UI binding | Migrated signal system to screaming architecture with enhanced reactivity features"
+    },
+    {
+      "old_path": "src/starmodel/core/mixins/entity_mixin.py",
+      "new_path": "framework/entities/behavior/mixins.py",
+      "migrated": false,
+      "tested": false,
+      "migration_date": null,
+      "notes": "Entity behavior mixins"
+    },
+    {
+      "old_path": "src/starmodel/core/mixins/persistence_mixin.py",
+      "new_path": "framework/persistence/repositories/mixins.py",
+      "migrated": false,
+      "tested": false,
+      "migration_date": null,
+      "notes": "Persistence mixin functionality"
+    },
+    {
+      "old_path": "src/starmodel/app/dispatcher.py",
+      "new_path": "framework/events/dispatching/dispatcher.py",
+      "migrated": true,
+      "tested": false,
+      "migration_date": "2025-06-20T19:08:34.335132",
+      "notes": "Command dispatcher - central coordination | Enhanced dispatcher with clean architecture - now in framework/events/dispatching/"
+    },
+    {
+      "old_path": "src/starmodel/app/bus.py",
+      "new_path": "framework/events/streaming/event_bus.py",
+      "migrated": true,
+      "tested": false,
+      "migration_date": "2025-06-20T19:08:40.042489",
+      "notes": "Event bus for pub/sub messaging | Enhanced event bus with pub/sub - now in framework/events/streaming/"
+    },
+    {
+      "old_path": "src/starmodel/app/uow.py",
+      "new_path": "framework/persistence/transactions/unit_of_work.py",
+      "migrated": true,
+      "tested": false,
+      "migration_date": "2025-06-20T19:08:46.807126",
+      "notes": "Unit of Work pattern for transactions | Enhanced Unit of Work with transactions - now in framework/persistence/transactions/"
+    },
+    {
+      "old_path": "src/starmodel/app/configurator.py",
+      "new_path": "framework/infrastructure/deployment/configurator.py",
+      "migrated": false,
+      "tested": false,
+      "migration_date": null,
+      "notes": "Application configuration and setup"
+    },
+    {
+      "old_path": "src/starmodel/persistence/memory.py",
+      "new_path": "framework/persistence/backends/memory.py",
+      "migrated": false,
+      "tested": false,
+      "migration_date": null,
+      "notes": "Memory-based persistence backend"
+    },
+    {
+      "old_path": "src/starmodel/persistence/sql.py",
+      "new_path": "framework/persistence/backends/sql.py",
+      "migrated": false,
+      "tested": false,
+      "migration_date": null,
+      "notes": "SQL persistence backend"
+    },
+    {
+      "old_path": "src/starmodel/persistence/base.py",
+      "new_path": "framework/persistence/repositories/base.py",
+      "migrated": false,
+      "tested": false,
+      "migration_date": null,
+      "notes": "Base persistence interfaces and patterns"
+    },
+    {
+      "old_path": "src/starmodel/persistence/datastar.py",
+      "new_path": "framework/realtime/protocols/datastar.py",
+      "migrated": false,
+      "tested": false,
+      "migration_date": null,
+      "notes": "Datastar SSE protocol implementation"
+    },
+    {
+      "old_path": "src/starmodel/adapters/fasthtml.py",
+      "new_path": "framework/infrastructure/web/fasthtml_adapter.py",
+      "migrated": false,
+      "tested": false,
+      "migration_date": null,
+      "notes": "FastHTML web framework adapter"
+    },
+    {
+      "old_path": "src/starmodel/web/",
+      "new_path": "framework/infrastructure/web/",
+      "migrated": false,
+      "tested": false,
+      "migration_date": null,
+      "notes": "Web framework integration utilities"
+    },
+    {
+      "old_path": "src/starmodel/cli/cli.py",
+      "new_path": "tools/cli/starmodel_cli.py",
+      "migrated": false,
+      "tested": false,
+      "migration_date": null,
+      "notes": "StarModel CLI commands"
+    },
+    {
+      "old_path": "src/starmodel/cli/templates/",
+      "new_path": "tools/scaffolding/templates/",
+      "migrated": false,
+      "tested": false,
+      "migration_date": null,
+      "notes": "Project scaffolding templates"
+    },
+    {
+      "old_path": "app/entities/",
+      "new_path": "examples/full-demo/entities/",
+      "migrated": false,
+      "tested": false,
+      "migration_date": null,
+      "notes": "Demo entity definitions"
+    },
+    {
+      "old_path": "app/pages/",
+      "new_path": "examples/full-demo/pages/",
+      "migrated": false,
+      "tested": false,
+      "migration_date": null,
+      "notes": "Demo page implementations"
+    },
+    {
+      "old_path": "app/main.py",
+      "new_path": "examples/full-demo/main.py",
+      "migrated": false,
+      "tested": false,
+      "migration_date": null,
+      "notes": "Full demo application entry point"
+    },
+    {
+      "old_path": "src/starmodel/__init__.py",
+      "new_path": "framework/__init__.py",
+      "migrated": false,
+      "tested": false,
+      "migration_date": null,
+      "notes": "Main package initialization with screaming architecture"
+    }
+  ]
+}
