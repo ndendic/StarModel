@@ -1,7 +1,7 @@
 import asyncio
+from starmodel import *
 from fasthtml.common import *
 from monsterui.all import *
-from starmodel import *
 
 custom_theme_css = Link(rel="stylesheet", href="app/assets/css/custom_theme.css", type="text/css")
 
@@ -47,10 +47,10 @@ def index(req: Request):
         # Counter display
         Card(
             Div(
-                Span(data_text=Counter.count_signal, cls=TextT.primary + "text-7xl font-bold"),
+                Span(data_text=Counter.Scount, cls=TextT.primary + "text-7xl font-bold"),
                 cls="text-center mb-2"
             ),
-            Div("Total updates: ", Span(data_text=Counter.update_count_signal), cls=TextT.primary),
+            Div("Total updates: ", Span(data_text=Counter.Supdate_count), cls=TextT.primary),
             cls=CardT.default + "text-center my-6",
         ),            
         # Counter controls

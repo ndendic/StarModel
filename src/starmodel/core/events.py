@@ -8,9 +8,10 @@ This is the refactored version as specified in app-layer.md.
 """
 
 import inspect
-from dataclasses import dataclass
-from typing import Optional, Any, Dict
+from dataclasses import dataclass, field
+from typing import Optional, Any, Dict, Type, TypeVar
 
+T = TypeVar('T')
 
 @dataclass
 class EventInfo:
@@ -22,6 +23,9 @@ class EventInfo:
     signature: inspect.Signature
     path: Optional[str] = None
     include_in_schema: bool = True
+    namespace: Optional[str] = None
+    entity_class: Optional[Type[T]] = None
+    kwargs: dict = field(default_factory=dict)
 
 
 class DatastarPayload:
@@ -62,7 +66,8 @@ def event(
     selector: Optional[str] = None,
     merge_mode: str = "morph",
     path: Optional[str] = None,
-    include_in_schema: bool = True
+    include_in_schema: bool = True,
+    **kwargs
 ):
     """
     Store event metadata only - no route registration.
@@ -85,12 +90,13 @@ def event(
         # Store event metadata on the function
         func._event_info = EventInfo(
             name=func.__name__,
-            method=method.upper(),
-            selector=selector,
-            merge_mode=merge_mode,
-            signature=inspect.signature(func),
-            path=path,
-            include_in_schema=include_in_schema
+            method=method.upper(), # TODO: make this a list of methods
+            selector=selector, # Datastar selector
+            merge_mode=merge_mode, # Datastar merge mode
+            signature=inspect.signature(func), # Event method signature
+            path=path, # Custom path for the route
+            include_in_schema=include_in_schema, # Whether to include in API schema
+            kwargs=kwargs # Additional keyword arguments
         )
         return func
     

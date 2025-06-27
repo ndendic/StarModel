@@ -1,12 +1,9 @@
+from starmodel import *
 from fasthtml.common import *
 from monsterui.all import *
-from starmodel import *
 from pages.templates import app_template
 
-
-
 import asyncio
-from starmodel import Entity, event, MemoryRepo
 
 class Counter(Entity): 
     """Enhanced counter with persistence and real-time sync."""
@@ -75,12 +72,12 @@ def global_counter(req: Request):
             Div(
                 Div(
                     Div(
-                        Span(data_text=Counter.count_signal, cls="text-7xl font-bold text-primary"),
+                        Span(data_text=Counter.Scount, cls="text-7xl font-bold text-primary"),
                         cls="text-center mb-4"
                     ),
-                    Div("Total updates: ", Span(data_text=Counter.update_count_signal), cls="font-mono text-secondary"),
+                    Div("Total updates: ", Span(data_text=Counter.Supdate_count), cls="font-mono text-secondary"),
                     Div(f"Current user: {username}", cls="font-mono text-secondary"),
-                    Div("Last updated by: ", Span(data_text=Counter.last_updated_by_signal), cls="font-mono text-secondary mb-2"),
+                    Div("Last updated by: ", Span(data_text=Counter.Slast_updated_by), cls="font-mono text-secondary mb-2"),
                     Div(id="message", cls="font-mono text-secondary mb-2"),
                     cls="p-6 border border-primary rounded mb-6 text-center"
                 ),

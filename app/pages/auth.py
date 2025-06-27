@@ -1,6 +1,6 @@
+from starmodel import *
 from fasthtml.common import *
 from monsterui.all import *
-from starmodel import *
 import json
 
 rt = APIRouter()

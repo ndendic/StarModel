@@ -53,12 +53,7 @@ class UnitOfWork:
         try:
             if entity.persistence_backend:
                 entity.persistence_backend.save_entity_sync(entity)            
-            
             self.collect_event(command_record)
-            
-            # TODO: Add database transaction commit here for SQL repositories
-            # if hasattr(repo, 'commit'):
-            #     await repo.commit()
             self._committed = True
             await self._publish_events()
             

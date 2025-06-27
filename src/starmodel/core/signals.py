@@ -1,6 +1,5 @@
-from pydantic._internal._model_construction import ModelMetaclass
 
-
+# TODO: add `S` prefix to the signal and make it a class variable
 class SignalDescriptor:
     """Return `$Model.field` on the class, real value on an instance."""
 
@@ -91,23 +90,3 @@ class EventMethodDescriptor:
             return f"@{http_method}('{path}?{query_string}')"
         else:
             return f"@{http_method}('{path}')"
-
-
-class SignalModelMeta(ModelMetaclass):
-    def __init__(cls, name, bases, ns, **kw):
-        super().__init__(name, bases, ns, **kw)
-
-        # For each declared field, replace the stub Pydantic left in the
-        # class __dict__ with our custom descriptor
-        for field_name in cls.model_fields:
-            setattr(cls, f"{field_name}_signal", SignalDescriptor(field_name))
-        for field_name in cls.model_computed_fields:
-            setattr(cls, f"{field_name}_signal", SignalDescriptor(field_name))
-        
-        # Create URL generator methods for @event decorated methods
-        for attr_name in dir(cls):
-            attr = getattr(cls, attr_name)
-            if hasattr(attr, '_event_info'):
-                # Create URL generator method that overrides the original method on the class
-                url_generator = EventMethodDescriptor(attr_name, cls.__name__, attr)
-                setattr(cls, attr_name, url_generator)

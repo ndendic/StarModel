@@ -1,6 +1,6 @@
+from starmodel import *
 from fasthtml.common import *
 from monsterui.all import *
-from starmodel import *
 from starmodel import MemoryRepo
 from pages.templates import app_template
 import random

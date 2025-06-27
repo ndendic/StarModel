@@ -1,6 +1,6 @@
+from starmodel import *
 from fasthtml.common import *
 from monsterui.all import *
-from starmodel import *
 from sqlmodel import Field
 from pages.templates import page_template
 from uuid import uuid4

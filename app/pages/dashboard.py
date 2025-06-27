@@ -86,10 +86,10 @@ class Dashboard(Entity):
 def InfoCard(title, value, change):
     return Div(Card(Div(value), P(change, cls=TextPresets.muted_sm), header=H4(title)))
 
-rev = InfoCard("Total Revenue", H3("$",Span(data_text=Dashboard.total_revenue_signal)), Span(Span(data_text=Dashboard.pct_change_signal)," from last sales"))
-sub = InfoCard("Subscriptions",H3(data_text=Dashboard.sales_signal), Span(Span(data_text=Dashboard.pct_change_signal)," from last month"))
-sal = InfoCard("Sales", H3("$",Span(data_text=Dashboard.total_revenue_signal)), Span(Span(data_text=Dashboard.pct_change_signal)," from last month"))
-act = InfoCard("Active Now", H3(data_text=Dashboard.sales_signal), Span(Span(data_text=Dashboard.pct_change_signal)," from last hour"))
+rev = InfoCard("Total Revenue", H3("$",Span(data_text=Dashboard.Stotal_revenue)), Span(Span(data_text=Dashboard.Spct_change)," from last sales"))
+sub = InfoCard("Subscriptions",H3(data_text=Dashboard.Ssales), Span(Span(data_text=Dashboard.Spct_change)," from last month"))
+sal = InfoCard("Sales", H3("$",Span(data_text=Dashboard.Stotal_revenue)), Span(Span(data_text=Dashboard.Spct_change)," from last month"))
+act = InfoCard("Active Now", H3(data_text=Dashboard.Ssales), Span(Span(data_text=Dashboard.Spct_change)," from last hour"))
 
 # %% ../example_dashboard.ipynb
 top_info_row = Grd(rev, sub, sal, act, cols_min=1, cols_max=4)

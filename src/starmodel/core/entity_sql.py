@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 
 from sqlmodel import SQLModel, Field
-from fasthtml.common import *
+# from fasthtml.common import *
 from pydantic import ConfigDict
 
 from .mixins import EntityMixin, PersistenceMixin

@@ -1,49 +1,8 @@
-from contextlib import asynccontextmanager
-from fasthtml.common import *
 from monsterui.all import *
-from starmodel import *
-from starmodel.persistence import start_all_cleanup, stop_all_cleanup
+from starmodel import datastar_script
+from fasthtml.common import *
+from starmodel.adapters.fasthtml import configure_app
 from route_collector import add_routes
-
-from starmodel import  register_all_entities
-
-def auth_beforeware(req, sess):
-    """
-    Simple authentication beforeware using FastHTML/Starlette pattern.
-    This demonstrates how to handle auth outside of StarModel.
-    """
-    # Simple demo auth - in real apps, integrate with your auth system
-    auth = req.scope["user"] = sess.get("auth", None)
-    if not auth:
-        return RedirectResponse("/login", status_code=303)
-    
-beforeware = Beforeware(
-    auth_beforeware,
-    skip=[
-        r"/favicon\.ico",
-        r"/assets/.*",
-        r".*\.css",
-        r".*\.svg",
-        r".*\.png",
-        r".*\.jpg",
-        r".*\.jpeg",
-        r".*\.gif",
-        r".*\.js",
-        r"/login",
-        r"/auth-demo",
-    ],
-)
-
-@asynccontextmanager
-async def lifespan(app):
-    """Application lifespan manager for persistence backends."""
-    # Start all registered persistence backend cleanup tasks
-    start_all_cleanup()
-    print("StarModel persistence backends initialized with automatic cleanup")
-    yield
-    # Stop all cleanup tasks on shutdown
-    stop_all_cleanup()
-    print("StarModel persistence cleanup tasks stopped")
 
 custom_theme_css = Link(rel="stylesheet", href="/css/custom_theme.css", type="text/css")
 favicon_link = Link(rel="icon", href="/favicon.svg", type="image/svg+xml")
@@ -54,8 +13,6 @@ app, rt = fast_app(
     live=True,
     pico=False,
     htmx=True,
-    lifespan=lifespan,  # Add lifespan for background tasks
-    # before=beforeware,  # Add auth beforeware
     hdrs=(
         # HighlightJS(langs=["python", "html"]),
         Link(rel='preconnect', href='https://fonts.googleapis.com'),
@@ -73,22 +30,9 @@ app, rt = fast_app(
     htmlkw=dict(cls="bg-surface-light uk-theme-claude dark:bg-surface-dark bg-background font-sans antialiased"),
 )
 
+configure_app(app, rt)
 add_routes(app)
 
-# Import and register entity routes using new application service layer
-
-
-# # Create application service layer components
-# bus = InProcessBus()
-# uow = UnitOfWork(persistence_manager, bus)
-
-# # Register entities with FastHTML adapter
-# entity_classes = [Landing, Counter, Dashboard, DataPlaygroundEntity]
-# register_entities(rt, entity_classes, uow)
-
-register_all_entities(rt)
-# # Keep old route registration for backward compatibility
-# entities_rt.to_app(app)
 
 if __name__ == "__main__":
     print("\n" + "="*60)

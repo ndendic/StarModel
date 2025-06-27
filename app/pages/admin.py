@@ -1,6 +1,6 @@
+from starmodel import *
 from fasthtml.common import *
 from monsterui.all import *
-from starmodel import *
 import json
 
 rt = APIRouter()
@@ -59,9 +59,9 @@ def admin_panel(req: Request):
                 Div(
                     H2("System Status", cls="text-xl font-bold mb-4"),
                     Div(
-                        Div("Theme: ", Span(data_text=GlobalSettings.theme_signal), cls="mb-2"),
-                        Div("Maintenance Mode: ", Span(data_text=GlobalSettings.maintenance_mode_signal), cls="mb-2"),
-                        Div("Announcement: ", Span(data_text=GlobalSettings.announcement_signal), cls="mb-2"),
+                        Div("Theme: ", Span(data_text=GlobalSettings.Stheme), cls="mb-2"),
+                        Div("Maintenance Mode: ", Span(data_text=GlobalSettings.Smaintenance_mode), cls="mb-2"),
+                        Div("Announcement: ", Span(data_text=GlobalSettings.Sannouncement), cls="mb-2"),
                         cls="bg-secondary-foreground p-4 rounded mb-6"
                     ),
                     cls="mb-6"
@@ -80,7 +80,7 @@ def admin_panel(req: Request):
                     
                     Div(
                         Input(placeholder="System announcement...", name="message",
-                              data_bind=GlobalSettings.announcement_signal,
+                              data_bind=GlobalSettings.Sannouncement,
                               cls="border rounded px-3 py-2 mr-2 flex-1"),
                         Button("Set Announcement", 
                                data_on_click=GlobalSettings.set_announcement(),

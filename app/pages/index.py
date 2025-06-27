@@ -1,6 +1,6 @@
+from starmodel import *
 from fasthtml.common import *
 from monsterui.all import *
-from starmodel import *
 from pages.templates import page_template
 import random
 from starmodel import Entity, event
@@ -151,7 +151,7 @@ def demo_page(req):
     return Main(
         entity,  # Auto-sync entity
         Card(
-            H2(data_text=DemoEntity.message_signal),
+            H2(data_text=DemoEntity.message),
             P(f"Count: {entity.count}"),
             Button("Click Me!", 
                    data_on_click=DemoEntity.increment())
@@ -170,7 +170,7 @@ def demo_page(req):
                                         DivLAligned(
                                             UkIcon("zap", cls="w-4 h-4 text-green-500"),
                                             Span("Updates: ", cls="text-sm text-muted-foreground"),
-                                            Span(data_text=Landing.live_counter_signal, 
+                                            Span(data_text=Landing.Slive_counter, 
                                                 cls="font-mono font-bold text-green-500"),
                                             cls="gap-2"
                                         )
@@ -179,7 +179,7 @@ def demo_page(req):
                                         DivLAligned(
                                             UkIcon("users", cls="w-4 h-4 text-blue-500"),
                                             Span("Active: ", cls="text-sm text-muted-foreground"),
-                                            Span(data_text=Landing.active_connections_signal, 
+                                            Span(data_text=Landing.Sactive_connections, 
                                                 cls="font-mono font-bold text-blue-500"),
                                             cls="gap-2"
                                         )
@@ -188,7 +188,7 @@ def demo_page(req):
                                         DivLAligned(
                                             UkIcon("activity", cls="w-4 h-4 text-purple-500"),
                                             Span("Status: ", cls="text-sm text-muted-foreground"),
-                                            Span(data_text=Landing.deploy_status_signal, 
+                                            Span(data_text=Landing.Sdeploy_status, 
                                                 cls="font-mono text-xs text-purple-500"),
                                             cls="gap-2"
                                         )
@@ -244,14 +244,14 @@ def demo_page(req):
                                     DivCentered(
                                         Div(
                                             Span("Message: ", cls="text-muted-foreground text-sm"),
-                                            H2(data_text=Landing.demo_message_signal, 
+                                            H2(data_text=Landing.Sdemo_message, 
                                                cls="text-2xl font-bold text-primary mb-4"),
                                             cls="mb-6"
                                         ),
                                         
                                         Div(
                                             Span("Count: ", cls="text-muted-foreground mr-2"),
-                                            Span(data_text=Landing.live_counter_signal, 
+                                            Span(data_text=Landing.Slive_counter, 
                                                 cls="font-mono text-3xl font-bold text-green-500"),
                                             cls="mb-6 flex items-center justify-center"
                                         ),
@@ -280,7 +280,7 @@ def demo_page(req):
                                     Card(
                                         DivCentered(
                                             UkIcon("zap", cls="w-6 h-6 text-green-500 mb-2"),
-                                            Span(data_text=Landing.performance_score_signal, 
+                                            Span(data_text=Landing.Sperformance_score, 
                                                 cls="text-xl font-bold text-green-500"),
                                             P("Performance", cls="text-xs text-muted-foreground")
                                         ),
@@ -289,7 +289,7 @@ def demo_page(req):
                                     Card(
                                         DivCentered(
                                             UkIcon("clock", cls="w-6 h-6 text-blue-500 mb-2"),
-                                            Span(data_text=Landing.response_time_signal, 
+                                            Span(data_text=Landing.Sresponse_time, 
                                                 cls="text-xl font-bold text-blue-500"),
                                             P("Response Time", cls="text-xs text-muted-foreground")
                                         ),
@@ -298,7 +298,7 @@ def demo_page(req):
                                     Card(
                                         DivCentered(
                                             UkIcon("activity", cls="w-6 h-6 text-purple-500 mb-2"),
-                                            Span(data_text=Landing.active_connections_signal, 
+                                            Span(data_text=Landing.Sactive_connections, 
                                                 cls="text-xl font-bold text-purple-500"),
                                             P("Active Users", cls="text-xs text-muted-foreground")
                                         ),
@@ -322,7 +322,7 @@ def demo_page(req):
                             Div(
                                 DivLAligned(
                                     UkIcon("github", cls="w-5 h-5 text-gray-600"),
-                                    Span(data_text=Landing.github_stars_signal, cls="font-bold text-foreground"),
+                                    Span(data_text=Landing.Sgithub_stars, cls="font-bold text-foreground"),
                                     Span("stars", cls="text-muted-foreground text-sm"),
                                     cls="gap-2"
                                 )
@@ -330,7 +330,7 @@ def demo_page(req):
                             Div(
                                 DivLAligned(
                                     UkIcon("download", cls="w-5 h-5 text-green-600"),
-                                    Span(data_text=Landing.npm_downloads_signal, cls="font-bold text-foreground"),
+                                    Span(data_text=Landing.Snpm_downloads, cls="font-bold text-foreground"),
                                     Span("downloads", cls="text-muted-foreground text-sm"),
                                     cls="gap-2"
                                 )
@@ -338,7 +338,7 @@ def demo_page(req):
                             Div(
                                 DivLAligned(
                                     UkIcon("code", cls="w-5 h-5 text-blue-600"),
-                                    Span(data_text=Landing.lines_written_signal, cls="font-bold text-foreground"),
+                                    Span(data_text=Landing.Slines_written, cls="font-bold text-foreground"),
                                     Span("lines written", cls="text-muted-foreground text-sm"),
                                     cls="gap-2"
                                 )
@@ -410,7 +410,7 @@ def premium_features():
                                 P("Live Demo: ", cls="text-sm text-muted-foreground mb-2"),
                                 Div(
                                     Span("Updates: ", cls="text-sm mr-2"),
-                                    Span(data_text=Landing.live_counter_signal, 
+                                    Span(data_text=Landing.Slive_counter, 
                                         cls="font-mono font-bold text-2xl text-yellow-500"),
                                     cls="flex items-center justify-center mb-3"
                                 ),
@@ -514,12 +514,12 @@ def handle_click(self):
                         Div(
                             Grid(
                                 Div(
-                                    Span(data_text=Landing.performance_score_signal, 
+                                    Span(data_text=Landing.Sperformance_score, 
                                         cls="text-2xl font-bold text-blue-500"),
                                     P("Performance Score", cls="text-xs text-muted-foreground")
                                 ),
                                 Div(
-                                    Span(data_text=Landing.response_time_signal, 
+                                    Span(data_text=Landing.Sresponse_time, 
                                         cls="text-2xl font-bold text-green-500"),
                                     P("Response Time", cls="text-xs text-muted-foreground")
                                 ),
@@ -586,7 +586,7 @@ def social_proof_section():
                     Div(
                         DivCentered(
                             UkIcon("github", cls="w-8 h-8 text-gray-700 mb-2"),
-                            Span(data_text=Landing.github_stars_signal, 
+                            Span(data_text=Landing.Sgithub_stars, 
                                 cls="text-3xl font-bold text-foreground"),
                             P("GitHub Stars", cls="text-sm text-muted-foreground")
                         )
@@ -594,7 +594,7 @@ def social_proof_section():
                     Div(
                         DivCentered(
                             UkIcon("download", cls="w-8 h-8 text-green-600 mb-2"),
-                            Span(data_text=Landing.npm_downloads_signal, 
+                            Span(data_text=Landing.Snpm_downloads, 
                                 cls="text-3xl font-bold text-foreground"),
                             P("Weekly Downloads", cls="text-sm text-muted-foreground")
                         )
@@ -602,7 +602,7 @@ def social_proof_section():
                     Div(
                         DivCentered(
                             UkIcon("users", cls="w-8 h-8 text-blue-600 mb-2"),
-                            Span(data_text=Landing.active_connections_signal, 
+                            Span(data_text=Landing.Sactive_connections, 
                                 cls="text-3xl font-bold text-foreground"),
                             P("Active Developers", cls="text-sm text-muted-foreground")
                         )
@@ -610,7 +610,7 @@ def social_proof_section():
                     Div(
                         DivCentered(
                             UkIcon("code", cls="w-8 h-8 text-purple-600 mb-2"),
-                            Span(data_text=Landing.lines_written_signal, 
+                            Span(data_text=Landing.Slines_written, 
                                 cls="text-3xl font-bold text-foreground"),
                             P("Lines of Code", cls="text-sm text-muted-foreground")
                         )
@@ -924,7 +924,7 @@ def demo(req: Request):
                 H3("Live Counter Demo", cls="text-xl font-bold text-foreground mb-4"),
                 DivCentered(
                     P("Current Value:", cls="text-muted-foreground"),
-                    Span(data_text=Landing.live_counter_signal, 
+                    Span(data_text=Landing.Slive_counter, 
                         cls="text-4xl font-mono font-bold text-primary block my-4"),
                     DivLAligned(
                         Button("−", data_on_click=Landing.pulse_counter(-1), 
@@ -943,12 +943,12 @@ def demo(req: Request):
                 Grid(
                     Div(
                         P("Live Updates", cls="text-muted-foreground text-sm"),
-                        Span(data_text=Landing.live_counter_signal, 
+                        Span(data_text=Landing.Slive_counter, 
                             cls="text-2xl font-bold text-primary")
                     ),
                     Div(
                         P("Connections", cls="text-muted-foreground text-sm"),
-                        Span(data_text=Landing.active_connections_signal, 
+                        Span(data_text=Landing.Sactive_connections, 
                             cls="text-2xl font-bold text-primary")
                     ),
                     cols=2, gap=4

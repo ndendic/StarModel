@@ -10,12 +10,10 @@ Key components:
 - bus: EventBus interface for SSE, WebSocket, and multi-instance coordination
 """
 
-from .dispatcher import call_event
 from .uow import UnitOfWork
 from .bus import InProcessBus
 
 __all__ = [
-    'call_event',
     'UnitOfWork', 
     'InProcessBus',
 ]

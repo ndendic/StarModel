@@ -8,11 +8,10 @@ mixed into any base model class (BaseModel, SQLModel, etc.).
 import asyncio
 import json
 from typing import Any, Dict, Optional
-from datetime import datetime
 
-from fasthtml.common import *
-from ..signals import SignalDescriptor, EventMethodDescriptor
-from ...persistence import MemoryRepo, EntityPersistenceBackend
+from fastcore.xml import *
+from starlette.requests import Request
+from ...persistence import MemoryRepo
 
 
 class EntityMixin:
@@ -116,7 +115,7 @@ class EntityMixin:
     def __ft__(self):
         """Render with data-signals attributes."""
         signals = json.dumps(self.signals)
-        return Div({"data-signals": signals}, id=f"{self.namespace}")
+        return Div(**{"data-signals": signals}, id=f"{self.namespace}")
 
     # Default event methods that subclasses can override
     async def live(self, heartbeat: float = 15):

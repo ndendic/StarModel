@@ -657,7 +657,7 @@ class DataPlaygroundEntity(Entity):
                         chart["label"],
                         data_on_click=DataPlaygroundEntity.update_chart_settings(chart_type=chart["value"]),
                         cls="p-3 transition-all duration-300",
-                        data_class=f"{{'bg-primary text-primary-foreground': {DataPlaygroundEntity.selected_chart_type_signal} === '{chart['value']}', 'bg-card hover:bg-muted border': {DataPlaygroundEntity.selected_chart_type_signal} !== '{chart['value']}'}}"
+                        data_class=f"{{'bg-primary text-primary-foreground': {DataPlaygroundEntity.Sselected_chart_type} === '{chart['value']}', 'bg-card hover:bg-muted border': {DataPlaygroundEntity.Sselected_chart_type} !== '{chart['value']}'}}"
                     )
                     for chart in chart_types
                 ],
@@ -781,7 +781,7 @@ def data_playground(request):
             entity.upload_zone_card(),
             id="upload-zone-container",
             cls="space-y-6" + (" hidden" if entity.is_data_loaded else ""),
-            data_show=f"{DataPlaygroundEntity.is_data_loaded_signal} === false"
+            data_show=f"{DataPlaygroundEntity.Sis_data_loaded} === false"
         ),
         # Main content area
         TabContainer(
@@ -789,7 +789,7 @@ def data_playground(request):
             Li(A("Data Preview")),
             Li(A("Chart Builder")),
             uk_switcher="connect: #component-nav; animation:uk-anmt-fade",
-            data_show=f"{DataPlaygroundEntity.is_data_loaded_signal}"
+            data_show=f"{DataPlaygroundEntity.Sis_data_loaded}"
             # alt=True,
         ),
         Ul(id="component-nav", cls="uk-switcher max-w-7xl mx-auto")(
@@ -799,7 +799,7 @@ def data_playground(request):
             ),        
             Li(entity.data_preview_card()),
             Li(entity.chart_builder_card()),
-            data_show=f"{DataPlaygroundEntity.is_data_loaded_signal}"
+            data_show=f"{DataPlaygroundEntity.Sis_data_loaded}"
         ),
         id="content"
     )
