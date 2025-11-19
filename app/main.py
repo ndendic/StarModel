@@ -39,4 +39,4 @@ if __name__ == "__main__":
     print("🎉 StarModel Demo Application Starting!")
     print("="*60)
     
-    serve(reload=True)
+    serve(reload=True, port=8008)

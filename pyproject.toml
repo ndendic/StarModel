@@ -9,7 +9,7 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "pydantic",
-    "datastar-py==0.4.3",
+    "datastar-py",
     "python-fasthtml>=0.12.19",
     "alembic>=1.14.0",
     "sqlmodel>=0.0.22",
@@ -30,5 +30,3 @@ dev = [
     "monsterui>=1.0.21",
 ]
 
-[tool.uv.sources]
-datastar-py = { git = "https://github.com/starfederation/datastar.git", subdirectory = "sdk/python", rev = "develop" }
